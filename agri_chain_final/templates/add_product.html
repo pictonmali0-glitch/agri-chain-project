@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Add Product - AgriChain{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="mb-4">
+      <h4 class="fw-bold mb-0">Register New Harvest</h4>
+      <small class="text-muted">This will create an immutable blockchain record</small>
+    </div>
+    <div class="card p-4">
+      <form method="POST" action="/farmer/add_product">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Crop Type <span class="text-danger">*</span></label>
+            <select name="crop_type" class="form-select" required>
+              <option value="">Select crop...</option>
+              <option>Maize</option>
+              <option>Coffee</option>
+              <option>Beans</option>
+              <option>Tomatoes</option>
+              <option>Sorghum</option>
+              <option>Cassava</option>
+              <option>Banana</option>
+              <option>Sweet Potato</option>
+              <option>Rice</option>
+              <option>Groundnuts</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Quantity (kg) <span class="text-danger">*</span></label>
+            <input type="number" name="quantity" class="form-control" min="1" step="0.1" placeholder="500" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Harvest Date <span class="text-danger">*</span></label>
+            <input type="date" name="harvest_date" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Quality Grade</label>
+            <select name="quality_grade" class="form-select">
+              <option value="A+">A+ (Premium)</option>
+              <option value="A" selected>A (Standard)</option>
+              <option value="B+">B+ (Good)</option>
+              <option value="B">B (Fair)</option>
+              <option value="C">C (Low)</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Farm Location <span class="text-danger">*</span></label>
+            <input type="text" name="location" class="form-control" placeholder="e.g., Hima, Kasese District" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes about this harvest..."></textarea>
+          </div>
+          <div class="col-12">
+            <div class="alert alert-info d-flex align-items-center gap-2" style="font-size:0.85rem">
+              <i class="bi bi-shield-lock fs-5"></i>
+              <div>Submitting this form will mine a new <strong>SHA-256 blockchain block</strong> and permanently record this harvest. This action cannot be undone.</div>
+            </div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary py-2 px-4">
+              <i class="bi bi-cpu me-2"></i>Mine Block & Register Product
+            </button>
+            <a href="/farmer/dashboard" class="btn btn-outline-secondary py-2 px-4 ms-2">Cancel</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

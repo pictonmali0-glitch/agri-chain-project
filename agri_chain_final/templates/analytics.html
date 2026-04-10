@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Analytics - AgriChain{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h4 class="fw-bold mb-0">Analytics & Insights</h4>
+  <small class="text-muted">Kasese District Agricultural Supply Chain Statistics</small>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card green"><div class="stat-num">{{ total_products }}</div><div class="stat-label">Total Products</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card blue"><div class="stat-num">{{ total_txs }}</div><div class="stat-label">Transactions</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card amber"><div class="stat-num">{{ verified }}</div><div class="stat-label">UNBS Verified</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card red"><div class="stat-num">{{ flagged }}</div><div class="stat-label">Flagged</div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-pie-chart me-2"></i>Products by Crop Type</div>
+      <div class="card-body"><canvas id="cropChart" height="220"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-bar-chart me-2"></i>Products by Status</div>
+      <div class="card-body"><canvas id="statusChart" height="220"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-geo-alt me-2"></i>Products by District</div>
+      <div class="card-body"><canvas id="districtChart" height="220"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-graph-up me-2"></i>Verification Rate</div>
+      <div class="card-body d-flex flex-column align-items-center justify-content-center" style="height:260px">
+        <canvas id="verifyChart" style="max-width:220px;max-height:220px"></canvas>
+        <div class="mt-2 text-muted" style="font-size:0.85rem">
+          {{ verified }} of {{ total_products }} products verified by UNBS
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const cropData = {{ crop_data|safe }};
+const statusData = {{ status_data|safe }};
+const districtData = {{ district_data|safe }};
+const colors = ['#1a6b3c','#2d9e5f','#f4a820','#c98010','#0891b2','#0369a1','#dc2626','#7c3aed','#0d9488'];
+
+new Chart(document.getElementById('cropChart'), {
+  type: 'doughnut',
+  data: {
+    labels: cropData.map(d => d.label),
+    datasets: [{ data: cropData.map(d => d.value), backgroundColor: colors, borderWidth: 2 }]
+  },
+  options: { plugins: { legend: { position: 'right' } }, cutout: '55%' }
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'bar',
+  data: {
+    labels: statusData.map(d => d.label.replace('_',' ')),
+    datasets: [{ label: 'Products', data: statusData.map(d => d.value), backgroundColor: colors, borderRadius: 6 }]
+  },
+  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+
+new Chart(document.getElementById('districtChart'), {
+  type: 'bar',
+  data: {
+    labels: districtData.map(d => d.label),
+    datasets: [{ label: 'Products', data: districtData.map(d => d.value), backgroundColor: '#1a6b3c', borderRadius: 6 }]
+  },
+  options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+});
+
+const total = {{ total_products }};
+const verified = {{ verified }};
+new Chart(document.getElementById('verifyChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Verified', 'Pending'],
+    datasets: [{ data: [verified, total - verified], backgroundColor: ['#1a6b3c', '#e5e7eb'], borderWidth: 0 }]
+  },
+  options: { cutout: '70%', plugins: { legend: { display: false } } }
+});
+</script>
+{% endblock %}

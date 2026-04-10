@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Buyer Dashboard - AgriChain{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0">Buyer Dashboard</h4>
+    <small class="text-muted">Welcome, {{ user.name }}</small>
+  </div>
+  <a href="/track" class="btn btn-primary"><i class="bi bi-search me-1"></i>Verify Product</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card green"><div class="stat-num">{{ products|length }}</div><div class="stat-label">Available Products</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card amber"><div class="stat-num">{{ owned|length }}</div><div class="stat-label">My Purchases</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card blue"><div class="stat-num">{{ transactions|length }}</div><div class="stat-label">Transactions</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card green"><div class="stat-num">{{ owned|selectattr('is_approved')|list|length }}</div><div class="stat-label">UNBS Approved</div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-shop me-2"></i>Available Products</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="px-4">Product Code</th>
+                <th>Crop</th>
+                <th>Farmer</th>
+                <th>Qty (kg)</th>
+                <th>Grade</th>
+                <th>Location</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in products %}
+              <tr>
+                <td class="px-4">
+                  <div class="fw-semibold" style="font-size:0.85rem">{{ p.product_code }}</div>
+                  {% if p.is_approved %}<span class="badge bg-success" style="font-size:0.65rem">UNBS Verified</span>{% endif %}
+                </td>
+                <td>{{ p.crop_type }}</td>
+                <td>{{ p.farmer.name }}</td>
+                <td>{{ p.quantity }}</td>
+                <td><span class="badge bg-light text-dark border">{{ p.quality_grade }}</span></td>
+                <td style="font-size:0.8rem">{{ p.location }}</td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <a href="/track?q={{ p.product_code }}" class="btn btn-sm btn-outline-secondary py-0">History</a>
+                    <form method="POST" action="/buyer/confirm_purchase/{{ p.id }}" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-success py-0" onclick="return confirm('Confirm purchase on blockchain?')">Buy</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="7" class="text-center py-4 text-muted">No products available</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header py-3 px-4"><i class="bi bi-bag-check me-2"></i>My Purchases</div>
+      <div class="card-body p-3">
+        {% for p in owned %}
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+          <div>
+            <div class="fw-semibold" style="font-size:0.85rem">{{ p.product_code }}</div>
+            <small class="text-muted">{{ p.crop_type }} · {{ p.quantity }}kg</small>
+          </div>
+          <span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span>
+        </div>
+        {% else %}
+        <p class="text-muted text-center small">No purchases yet</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-clock-history me-2"></i>Recent Transactions</div>
+      <div class="card-body p-3">
+        {% for tx in transactions %}
+        <div class="border-bottom pb-2 mb-2" style="font-size:0.8rem">
+          <div class="fw-semibold">{{ tx.action.replace('_',' ').title() }}</div>
+          <div class="hash-text">{{ tx.tx_id }}</div>
+          <div class="text-muted">{{ tx.timestamp.strftime('%d %b %Y') }}</div>
+        </div>
+        {% else %}
+        <p class="text-muted text-center small">No transactions</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

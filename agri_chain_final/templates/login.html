@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Login - AgriChain{% endblock %}
+{% block content %}
+<div class="row justify-content-center" style="margin-top:4rem;">
+  <div class="col-md-5">
+    <div class="text-center mb-4">
+      <h2 class="fw-bold">Welcome back</h2>
+      <p class="text-muted">Sign in to your AgriChain account</p>
+    </div>
+    <div class="card p-4">
+      <form method="POST" action="/auth/login">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Email address</label>
+          <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Password</label>
+          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2">Sign In <i class="bi bi-arrow-right ms-1"></i></button>
+      </form>
+      <hr>
+      <div class="bg-light p-3 rounded" style="font-size:0.8rem;">
+        <strong>Test Credentials:</strong><br>
+        Admin: admin@agrichain.ug / admin123<br>
+        Farmer: farmer@agrichain.ug / farmer123<br>
+        Buyer: buyer@agrichain.ug / buyer123<br>
+        Transporter: transporter@agrichain.ug / transport123<br>
+        Regulator: regulator@agrichain.ug / regulator123
+      </div>
+    </div>
+    <p class="text-center mt-3 text-muted">No account? <a href="/auth/register" class="text-success fw-semibold">Register here</a></p>
+  </div>
+</div>
+{% endblock %}

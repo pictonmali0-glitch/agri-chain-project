@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Regulator Dashboard - AgriChain{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0">Regulator / UNBS Dashboard</h4>
+    <small class="text-muted">{{ user.name }} · Audit & Compliance</small>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if chain_valid %}
+    <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>Blockchain Valid</span>
+    {% else %}
+    <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Chain Tampered!</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card green"><div class="stat-num">{{ products|length }}</div><div class="stat-label">Total Products</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card blue"><div class="stat-num">{{ products|selectattr('is_approved')|list|length }}</div><div class="stat-label">Approved</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card red"><div class="stat-num">{{ flagged|length }}</div><div class="stat-label">Flagged</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card amber"><div class="stat-num">{{ products|rejectattr('is_approved')|rejectattr('is_flagged')|list|length }}</div><div class="stat-label">Pending Review</div></div></div>
+</div>
+
+{% if flagged %}
+<div class="alert alert-danger d-flex gap-2 align-items-start mb-4">
+  <i class="bi bi-exclamation-triangle-fill fs-5 mt-1"></i>
+  <div><strong>Flagged Products:</strong> {{ flagged|length }} product(s) require urgent attention.
+    {% for f in flagged %}<br><small>· {{ f.product_code }} ({{ f.crop_type }}) – {{ f.location }}</small>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header py-3 px-4"><i class="bi bi-clipboard-check me-2"></i>All Products – Audit View</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="px-4">Product Code</th>
+            <th>Crop</th>
+            <th>Farmer</th>
+            <th>Location</th>
+            <th>Grade</th>
+            <th>Status</th>
+            <th>Blockchain Hash</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr class="{% if p.is_flagged %}table-danger{% endif %}">
+            <td class="px-4">
+              <div class="fw-semibold" style="font-size:0.85rem">{{ p.product_code }}</div>
+              <small class="text-muted">{{ p.harvest_date }}</small>
+            </td>
+            <td>{{ p.crop_type }}</td>
+            <td>{{ p.farmer.name }}</td>
+            <td style="font-size:0.8rem">{{ p.location }}</td>
+            <td><span class="badge bg-light text-dark border">{{ p.quality_grade }}</span></td>
+            <td>
+              <span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span>
+              {% if p.is_flagged %}<span class="badge-status badge-flagged ms-1">Flagged</span>{% endif %}
+            </td>
+            <td><div class="hash-text">{{ p.blockchain_hash[:30] if p.blockchain_hash else 'N/A' }}...</div></td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="/track?q={{ p.product_code }}" class="btn btn-sm btn-outline-secondary py-0">Audit</a>
+                {% if not p.is_approved %}
+                <form method="POST" action="/regulator/approve/{{ p.id }}" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-success py-0">Approve</button>
+                </form>
+                {% endif %}
+                {% if not p.is_flagged %}
+                <form method="POST" action="/regulator/flag/{{ p.id }}" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-danger py-0">Flag</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center py-4 text-muted">No products in system</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

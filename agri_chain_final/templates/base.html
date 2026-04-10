@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}AgriChain Uganda{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1a6b3c;
+    --primary-light: #2d9e5f;
+    --accent: #f4a820;
+    --accent-dark: #c98010;
+    --dark: #0d1f13;
+    --surface: #f5f8f5;
+    --card-bg: #ffffff;
+    --text: #1a2a1e;
+    --text-muted: #6b7a6e;
+    --border: #d4e4d8;
+    --danger: #dc2626;
+    --warning: #f59e0b;
+    --info: #0891b2;
+    --success: #16a34a;
+  }
+  * { font-family: 'Space Grotesk', sans-serif; }
+  body { background: var(--surface); color: var(--text); min-height: 100vh; }
+  .navbar { background: var(--dark) !important; border-bottom: 2px solid var(--primary); }
+  .navbar-brand { color: var(--accent) !important; font-weight: 700; font-size: 1.2rem; letter-spacing: -0.5px; }
+  .navbar-brand span { color: #fff; font-weight: 300; }
+  .nav-link { color: rgba(255,255,255,0.8) !important; font-size: 0.875rem; font-weight: 500; }
+  .nav-link:hover, .nav-link.active { color: var(--accent) !important; }
+  .sidebar { background: var(--dark); min-height: calc(100vh - 56px); padding-top: 1.5rem; width: 240px; position: fixed; left: 0; top: 56px; z-index: 100; transition: all 0.3s; }
+  .sidebar .nav-link { color: rgba(255,255,255,0.7) !important; padding: 0.6rem 1.25rem; border-radius: 8px; margin: 2px 12px; font-size: 0.875rem; display: flex; align-items: center; gap: 10px; }
+  .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.1); color: var(--accent) !important; }
+  .sidebar .nav-link i { font-size: 1rem; width: 20px; }
+  .main-content { margin-left: 240px; padding: 2rem; }
+  .card { border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .card-header { background: transparent; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .stat-card { border-radius: 12px; padding: 1.5rem; color: white; }
+  .stat-card.green { background: linear-gradient(135deg, var(--primary), var(--primary-light)); }
+  .stat-card.amber { background: linear-gradient(135deg, #c98010, #f4a820); }
+  .stat-card.blue { background: linear-gradient(135deg, #0369a1, #0891b2); }
+  .stat-card.red { background: linear-gradient(135deg, #991b1b, #dc2626); }
+  .stat-card .stat-num { font-size: 2.5rem; font-weight: 700; line-height: 1; }
+  .stat-card .stat-label { font-size: 0.8rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+  .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge-harvested { background: #ecfdf5; color: #065f46; }
+  .badge-transferred { background: #eff6ff; color: #1e40af; }
+  .badge-in_transit { background: #fffbeb; color: #92400e; }
+  .badge-delivered { background: #f0fdf4; color: #166534; }
+  .badge-approved { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+  .badge-purchased { background: #fef3c7; color: #78350f; }
+  .badge-flagged { background: #fef2f2; color: #991b1b; }
+  .hash-text { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); word-break: break-all; }
+  .btn-primary { background: var(--primary); border-color: var(--primary); }
+  .btn-primary:hover { background: var(--primary-light); border-color: var(--primary-light); }
+  .btn-warning { background: var(--accent); border-color: var(--accent); color: var(--dark); }
+  .timeline { position: relative; padding-left: 2rem; }
+  .timeline::before { content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 1.5rem; }
+  .timeline-item::before { content: ''; position: absolute; left: -1.625rem; top: 0.25rem; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 2px solid white; box-shadow: 0 0 0 2px var(--primary); }
+  .block-card { background: var(--dark); color: #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; border: 1px solid rgba(255,255,255,0.1); }
+  .block-card .block-hash { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent); }
+  .alert { border-radius: 10px; }
+  .sidebar-section { padding: 0.5rem 1.25rem; margin-top: 1rem; }
+  .sidebar-section small { color: rgba(255,255,255,0.4); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 1px; font-weight: 600; }
+  .table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; }
+  .search-bar { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .search-bar input { border: none; outline: none; flex: 1; font-size: 0.9rem; }
+  @media (max-width: 768px) { .sidebar { width: 0; overflow: hidden; } .main-content { margin-left: 0; padding: 1rem; } }
+</style>
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+<nav class="navbar navbar-expand-lg sticky-top">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand" href="/"><i class="bi bi-boxes me-2"></i>Agri<span>Chain</span></a>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      {% if session.user_id %}
+      <span class="text-white-50 small d-none d-md-block">
+        <i class="bi bi-shield-check text-success me-1"></i>Blockchain Active
+      </span>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-person-circle me-1"></i>{{ session.user_name }}
+          <span class="badge ms-1" style="background:var(--accent);color:var(--dark);font-size:0.65rem">{{ session.user_role }}</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="/auth/logout"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+        </ul>
+      </div>
+      {% else %}
+      <a href="/auth/login" class="btn btn-sm btn-outline-light">Login</a>
+      <a href="/auth/register" class="btn btn-sm" style="background:var(--accent);color:var(--dark)">Register</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+{% if session.user_id %}
+<div class="sidebar">
+  <div class="sidebar-section"><small>Navigation</small></div>
+  {% if session.user_role == 'farmer' %}
+    <a href="/farmer/dashboard" class="nav-link"><i class="bi bi-grid"></i>Dashboard</a>
+    <a href="/farmer/add_product" class="nav-link"><i class="bi bi-plus-circle"></i>Add Product</a>
+    <a href="/track" class="nav-link"><i class="bi bi-search"></i>Track Product</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+  {% elif session.user_role == 'buyer' %}
+    <a href="/buyer/dashboard" class="nav-link"><i class="bi bi-grid"></i>Dashboard</a>
+    <a href="/track" class="nav-link"><i class="bi bi-search"></i>Verify Product</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+  {% elif session.user_role == 'transporter' %}
+    <a href="/transporter/dashboard" class="nav-link"><i class="bi bi-grid"></i>Dashboard</a>
+    <a href="/track" class="nav-link"><i class="bi bi-search"></i>Track</a>
+  {% elif session.user_role == 'regulator' %}
+    <a href="/regulator/dashboard" class="nav-link"><i class="bi bi-grid"></i>Dashboard</a>
+    <a href="/track" class="nav-link"><i class="bi bi-search"></i>Audit Product</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
+  {% elif session.user_role == 'admin' %}
+    <a href="/admin/dashboard" class="nav-link"><i class="bi bi-grid"></i>Dashboard</a>
+    <a href="/track" class="nav-link"><i class="bi bi-search"></i>Track</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
+  {% endif %}
+  <div style="position:absolute;bottom:1rem;left:0;right:0;padding:0 1rem;">
+    <div style="background:rgba(244,168,32,0.1);border:1px solid rgba(244,168,32,0.3);border-radius:8px;padding:0.75rem;font-size:0.75rem;color:rgba(255,255,255,0.6);">
+      <i class="bi bi-geo-alt text-warning me-1"></i>Kasese District, Uganda
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="{% if session.user_id %}main-content{% else %}container py-4{% endif %}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat if cat != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
