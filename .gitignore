@@ -1,0 +1,6 @@
+agri_chain.db
+agri_chain.db-shm
+agri_chain.db-wal
+__pycache__/
+instance/
+*.pyc
