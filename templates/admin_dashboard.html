@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - AgriChain{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h4 class="fw-bold mb-0">System Administrator Dashboard</h4>
+  <small class="text-muted">Full system oversight and management</small>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2"><div class="stat-card green"><div class="stat-num">{{ stats.total_users }}</div><div class="stat-label">Total Users</div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card amber"><div class="stat-num">{{ stats.total_products }}</div><div class="stat-label">Products</div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card blue"><div class="stat-num">{{ stats.total_transactions }}</div><div class="stat-label">Transactions</div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card green"><div class="stat-num">{{ stats.total_blocks }}</div><div class="stat-label">Blocks Mined</div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card red"><div class="stat-num">{{ stats.flagged }}</div><div class="stat-label">Flagged</div></div></div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card {% if stats.chain_valid %}green{% else %}red{% endif %}">
+      <div class="stat-num" style="font-size:1.5rem">{% if stats.chain_valid %}OK{% else %}ERR{% endif %}</div>
+      <div class="stat-label">Chain Status</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-people me-2"></i>User Management</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr><th class="px-4">Name</th><th>Role</th><th>Location</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td class="px-4">
+                  <div class="fw-semibold" style="font-size:0.85rem">{{ u.name }}</div>
+                  <div style="font-size:0.75rem;color:var(--text-muted)">{{ u.email }}</div>
+                </td>
+                <td><span class="badge bg-secondary" style="font-size:0.7rem">{{ u.role }}</span></td>
+                <td style="font-size:0.8rem">{{ u.location or '-' }}</td>
+                <td>
+                  {% if u.is_active %}<span class="badge bg-success" style="font-size:0.7rem">Active</span>
+                  {% else %}<span class="badge bg-danger" style="font-size:0.7rem">Inactive</span>{% endif %}
+                </td>
+                <td>
+                  {% if u.role != 'admin' %}
+                  <form method="POST" action="/admin/toggle_user/{{ u.id }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm py-0 {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                      {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card mb-3">
+      <div class="card-header py-3 px-4"><i class="bi bi-journal-text me-2"></i>Audit Logs</div>
+      <div class="card-body p-3" style="max-height:250px;overflow-y:auto">
+        {% for log in logs %}
+        <div class="border-bottom pb-1 mb-1" style="font-size:0.78rem">
+          <div class="d-flex justify-content-between">
+            <span class="fw-semibold">{{ log.action }}</span>
+            <span class="text-muted">{{ log.timestamp.strftime('%d %b %H:%M') }}</span>
+          </div>
+          <div class="text-muted">{{ log.user.name if log.user else 'System' }} · {{ log.ip_address or 'N/A' }}</div>
+        </div>
+        {% else %}
+        <p class="text-muted text-center small">No audit logs</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-link-45deg me-2"></i>Recent Blockchain Transactions</div>
+      <div class="card-body p-3" style="max-height:200px;overflow-y:auto">
+        {% for tx in transactions %}
+        <div class="border-bottom pb-1 mb-1" style="font-size:0.78rem">
+          <div class="d-flex justify-content-between">
+            <span class="fw-semibold">{{ tx.action.replace('_',' ').title() }}</span>
+            <span class="text-muted">{{ tx.timestamp.strftime('%d %b') }}</span>
+          </div>
+          <div class="hash-text">TX: {{ tx.tx_id }}</div>
+          <div class="hash-text">Block #{{ tx.block_index }}: {{ tx.block_hash[:25] if tx.block_hash else '' }}...</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header py-3 px-4"><i class="bi bi-box-seam me-2"></i>All Products</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:0.82rem">
+            <thead class="table-light">
+              <tr><th class="px-4">Code</th><th>Crop</th><th>Farmer</th><th>Qty</th><th>Location</th><th>Status</th><th>Approved</th><th>Hash</th></tr>
+            </thead>
+            <tbody>
+              {% for p in products %}
+              <tr class="{% if p.is_flagged %}table-warning{% endif %}">
+                <td class="px-4 fw-semibold">{{ p.product_code }}</td>
+                <td>{{ p.crop_type }}</td>
+                <td>{{ p.farmer.name }}</td>
+                <td>{{ p.quantity }}kg</td>
+                <td>{{ p.location }}</td>
+                <td><span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span></td>
+                <td>{% if p.is_approved %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted"></i>{% endif %}</td>
+                <td><span class="hash-text">{{ p.blockchain_hash[:20] if p.blockchain_hash else 'N/A' }}...</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

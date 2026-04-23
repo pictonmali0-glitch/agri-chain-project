@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriChain Uganda - Blockchain Agricultural Supply Chain</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --primary:#1a6b3c;--accent:#f4a820;--dark:#0d1f13; }
+  * { font-family: 'Space Grotesk', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--dark); color: #e2e8f0; }
+  nav { padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .brand { color: var(--accent); font-weight: 800; font-size: 1.3rem; }
+  .brand span { color: white; font-weight: 300; }
+  .hero { min-height: 92vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 4rem 2rem; background: radial-gradient(ellipse at center, rgba(26,107,60,0.3) 0%, transparent 70%); position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231a6b3c' fill-opacity='0.07'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+  .hero-badge { background: rgba(244,168,32,0.15); border: 1px solid rgba(244,168,32,0.3); color: var(--accent); padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 1.5rem; display: inline-block; }
+  .hero h1 { font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { font-size: 1.1rem; color: rgba(255,255,255,0.65); max-width: 600px; line-height: 1.7; margin-bottom: 2.5rem; }
+  .btn-cta { background: var(--primary); color: white; padding: 0.9rem 2.5rem; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 1rem; border: none; margin-right: 1rem; transition: all 0.2s; }
+  .btn-cta:hover { background: #2d9e5f; color: white; transform: translateY(-2px); }
+  .btn-ghost { background: transparent; color: white; padding: 0.9rem 2.5rem; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 1rem; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.1); color: white; }
+  .stats-bar { display: flex; gap: 3rem; justify-content: center; margin-top: 4rem; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-num { font-size: 2rem; font-weight: 800; color: var(--accent); }
+  .stat-lbl { font-size: 0.8rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+  .features { padding: 5rem 2rem; background: rgba(255,255,255,0.02); }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; max-width: 1100px; margin: 3rem auto 0; }
+  .feature-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 2rem; }
+  .feature-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem; background: rgba(26,107,60,0.3); color: var(--accent); }
+  .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .feature-card p { font-size: 0.85rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+  .roles { padding: 5rem 2rem; }
+  .role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; max-width: 1100px; margin: 3rem auto 0; }
+  .role-card { background: var(--primary); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: transform 0.2s; text-decoration: none; }
+  .role-card:hover { transform: translateY(-4px); }
+  .role-card i { font-size: 2rem; color: var(--accent); display: block; margin-bottom: 0.75rem; }
+  .role-card h4 { color: white; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .role-card small { color: rgba(255,255,255,0.6); font-size: 0.75rem; }
+  footer { text-align: center; padding: 2rem; color: rgba(255,255,255,0.4); font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.1); }
+  h2.section-title { text-align: center; font-size: 2rem; font-weight: 700; }
+  .section-sub { text-align: center; color: rgba(255,255,255,0.5); margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><i class="bi bi-boxes me-2"></i>Agri<span>Chain</span></div>
+  <div>
+    <a href="/auth/login" class="btn-ghost" style="padding:0.5rem 1.25rem;font-size:0.875rem">Login</a>
+    <a href="/auth/register" class="btn-cta" style="padding:0.5rem 1.25rem;font-size:0.875rem;margin-left:0.5rem">Get Started</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-badge"><i class="bi bi-shield-check me-1"></i>Kasese District, Uganda · Blockchain-Secured</div>
+  <h1>Transparent <span>Agricultural</span><br>Supply Chains</h1>
+  <p>Track every crop from farm to market using immutable blockchain technology. Build trust, prevent fraud, and ensure accountability across Uganda's agricultural ecosystem.</p>
+  <div>
+    <a href="/auth/register" class="btn-cta">Start Tracking</a>
+    <a href="/auth/login" class="btn-ghost">Sign In</a>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-lbl">Tamper-Resistant</div></div>
+    <div class="stat"><div class="stat-num">5</div><div class="stat-lbl">Supply Chain Stages</div></div>
+    <div class="stat"><div class="stat-num">SHA-256</div><div class="stat-lbl">Blockchain Hashing</div></div>
+    <div class="stat"><div class="stat-num">Real-time</div><div class="stat-lbl">Product Tracking</div></div>
+  </div>
+</section>
+
+<section class="features">
+  <h2 class="section-title">How AgriChain Works</h2>
+  <p class="section-sub">Every agricultural event creates an immutable blockchain record</p>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-plant"></i></div>
+      <h3>Farm Registration</h3>
+      <p>Farmers register harvests with location, quantity, and quality data. A blockchain block is created instantly.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-arrow-left-right"></i></div>
+      <h3>Transfer & Trade</h3>
+      <p>Every ownership transfer between farmers and buyers is recorded as an immutable transaction.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-truck"></i></div>
+      <h3>Transport Tracking</h3>
+      <p>Transporters update real-time status from pickup to delivery, creating a complete movement audit trail.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-shield-check"></i></div>
+      <h3>Regulatory Audit</h3>
+      <p>UNBS regulators verify compliance, approve or flag products, and access tamper-proof blockchain logs.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-qr-code-scan"></i></div>
+      <h3>QR Verification</h3>
+      <p>Every product gets a QR code. Scan to instantly view the complete verified supply chain history.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <h3>Analytics Dashboard</h3>
+      <p>District-level insights, crop trading patterns, fraud alerts, and verification rates at a glance.</p>
+    </div>
+  </div>
+</section>
+
+<section class="roles">
+  <h2 class="section-title">Role-Based Access</h2>
+  <p class="section-sub">Each stakeholder has a tailored dashboard and permissions</p>
+  <div class="role-grid">
+    <a href="/auth/login" class="role-card">
+      <i class="bi bi-person-badge"></i>
+      <h4>Farmer</h4>
+      <small>Register & track harvests</small>
+    </a>
+    <a href="/auth/login" class="role-card">
+      <i class="bi bi-bag-check"></i>
+      <h4>Buyer</h4>
+      <small>Verify & purchase produce</small>
+    </a>
+    <a href="/auth/login" class="role-card">
+      <i class="bi bi-truck"></i>
+      <h4>Transporter</h4>
+      <small>Update delivery status</small>
+    </a>
+    <a href="/auth/login" class="role-card">
+      <i class="bi bi-clipboard-check"></i>
+      <h4>Regulator</h4>
+      <small>Audit & approve produce</small>
+    </a>
+    <a href="/auth/login" class="role-card">
+      <i class="bi bi-gear"></i>
+      <h4>Admin</h4>
+      <small>System management</small>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <p>AgriChain Uganda &copy; 2024 · Final Year Project · Blockchain Agricultural Supply Chain · Kasese District</p>
+  <p style="margin-top:0.5rem;">Built with Python Flask + SQLite + SHA-256 Blockchain Simulation</p>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

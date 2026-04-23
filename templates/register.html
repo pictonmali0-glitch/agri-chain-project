@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Register - AgriChain{% endblock %}
+{% block content %}
+<div class="row justify-content-center" style="margin-top:3rem;">
+  <div class="col-md-6">
+    <div class="text-center mb-4">
+      <h2 class="fw-bold">Create Account</h2>
+      <p class="text-muted">Join the AgriChain supply chain network</p>
+    </div>
+    <div class="card p-4">
+      <form method="POST" action="/auth/register">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Full Name</label>
+            <input type="text" name="name" class="form-control" placeholder="John Muhindo" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="john@example.com" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Phone</label>
+            <input type="text" name="phone" class="form-control" placeholder="+256700000000">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" name="password" class="form-control" required minlength="6">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Role</label>
+            <select name="role" class="form-select" required>
+              <option value="farmer">Farmer</option>
+              <option value="buyer">Buyer / Distributor</option>
+              <option value="transporter">Transporter</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Location / District</label>
+            <input type="text" name="location" class="form-control" placeholder="Kasese, Uganda">
+          </div>
+          <div class="col-12 mt-2">
+            <button type="submit" class="btn btn-primary w-100 py-2">Create Account <i class="bi bi-arrow-right ms-1"></i></button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <p class="text-center mt-3 text-muted">Already have an account? <a href="/auth/login" class="text-success fw-semibold">Sign in</a></p>
+  </div>
+</div>
+{% endblock %}

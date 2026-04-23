@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Transporter Dashboard - AgriChain{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h4 class="fw-bold mb-0">Transporter Dashboard</h4>
+  <small class="text-muted">Manage and update product transport status</small>
+</div>
+
+<div class="card">
+  <div class="card-header py-3 px-4"><i class="bi bi-truck me-2"></i>Products for Transport</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="px-4">Product Code</th>
+            <th>Crop</th>
+            <th>Farmer</th>
+            <th>Quantity</th>
+            <th>Location</th>
+            <th>Current Status</th>
+            <th>Update Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td class="px-4">
+              <div class="fw-semibold" style="font-size:0.85rem">{{ p.product_code }}</div>
+              <div class="hash-text">{{ p.blockchain_hash[:20] if p.blockchain_hash else '' }}...</div>
+            </td>
+            <td>{{ p.crop_type }}</td>
+            <td>{{ p.farmer.name }}</td>
+            <td>{{ p.quantity }} kg</td>
+            <td style="font-size:0.85rem">{{ p.location }}</td>
+            <td><span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span></td>
+            <td>
+              <form method="POST" action="/transporter/update_status/{{ p.id }}" class="d-flex gap-1">
+                <select name="status" class="form-select form-select-sm" style="width:auto">
+                  <option value="in_transit" {% if p.status == 'in_transit' %}selected{% endif %}>In Transit</option>
+                  <option value="delivered" {% if p.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-primary">Update</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center py-4 text-muted">No products assigned for transport</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Blockchain Explorer - AgriChain{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0">Blockchain Explorer</h4>
+    <small class="text-muted">Immutable ledger — AgriChain Kasese District Node</small>
+  </div>
+  <div>
+    {% if is_valid %}
+    <span class="badge bg-success fs-6"><i class="bi bi-shield-check me-1"></i>Chain Integrity: VALID</span>
+    {% else %}
+    <span class="badge bg-danger fs-6"><i class="bi bi-exclamation-triangle me-1"></i>Chain COMPROMISED</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="stat-card green"><div class="stat-num">{{ chain|length }}</div><div class="stat-label">Total Blocks</div></div></div>
+  <div class="col-md-3"><div class="stat-card amber"><div class="stat-num">2</div><div class="stat-label">PoW Difficulty</div></div></div>
+  <div class="col-md-3"><div class="stat-card blue"><div class="stat-num">SHA-256</div><div class="stat-label">Hash Algorithm</div></div></div>
+  <div class="col-md-3"><div class="stat-card {% if is_valid %}green{% else %}red{% endif %}"><div class="stat-num">{% if is_valid %}100%{% else %}ERR{% endif %}</div><div class="stat-label">Integrity</div></div></div>
+</div>
+
+<div class="card">
+  <div class="card-header py-3 px-4" style="background:var(--dark);color:white;">
+    <i class="bi bi-link-45deg me-2"></i>Block Chain — Kasese Agricultural Ledger
+  </div>
+  <div class="card-body p-3" style="background:#0d1117">
+    {% for block in chain|reverse %}
+    <div class="block-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <span style="background:rgba(244,168,32,0.2);color:var(--accent);padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600">
+            Block #{{ block.index }}
+          </span>
+          {% if block.index == 0 %}
+          <span style="background:rgba(255,255,255,0.1);color:#94a3b8;padding:2px 8px;border-radius:12px;font-size:0.7rem;margin-left:6px">Genesis</span>
+          {% endif %}
+        </div>
+        <span style="font-size:0.75rem;color:#64748b">{{ block.timestamp[:19] }}</span>
+      </div>
+      <div class="row g-2" style="font-size:0.75rem">
+        <div class="col-12">
+          <span style="color:#64748b">Current Hash:</span>
+          <div class="block-hash">{{ block.hash }}</div>
+        </div>
+        <div class="col-12">
+          <span style="color:#64748b">Previous Hash:</span>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:#475569">{{ block.previous_hash }}</div>
+        </div>
+        <div class="col-md-6">
+          <span style="color:#64748b">Nonce:</span>
+          <span style="color:#e2e8f0;margin-left:4px">{{ block.nonce }}</span>
+        </div>
+        <div class="col-md-6">
+          <span style="color:#64748b">Data:</span>
+          <span style="color:#e2e8f0;margin-left:4px;font-family:'JetBrains Mono',monospace;font-size:0.68rem">
+            {{ block.data[:80] if block.data|length > 80 else block.data }}
+          </span>
+        </div>
+      </div>
+      {% if not loop.last %}
+      <div class="text-center mt-2" style="color:#475569;font-size:0.8rem">
+        <i class="bi bi-arrow-down"></i> Linked by Hash
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="mt-3">
+  <a href="/api/chain" class="btn btn-outline-secondary btn-sm" target="_blank">
+    <i class="bi bi-braces me-1"></i>View Raw JSON API
+  </a>
+</div>
+{% endblock %}
