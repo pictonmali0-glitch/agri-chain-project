@@ -9,21 +9,27 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Initialize database
+    # IMPORTANT: use Render DATABASE_URL if available
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+        "DATABASE_URL",
+        app.config.get("SQLALCHEMY_DATABASE_URI")
+    )
+
+    # Required fix for PostgreSQL on Render
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True
+    }
+
     db.init_app(app)
 
-    # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
 
-    # Create tables safely (NO seed_data on deploy)
     with app.app_context():
         db.create_all()
 
     return app
 
-
-# IMPORTANT: Render entry point
 app = create_app()
 
 if __name__ == "__main__":
