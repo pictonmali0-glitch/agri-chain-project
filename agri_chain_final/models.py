@@ -10,7 +10,7 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # farmer, buyer, transporter, regulator, admin
+    role = db.Column(db.String(20), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     phone = db.Column(db.String(20))
     location = db.Column(db.String(100))
@@ -45,6 +45,7 @@ class Product(db.Model):
     is_flagged = db.Column(db.Boolean, default=False)
     is_approved = db.Column(db.Boolean, default=False)
     notes = db.Column(db.Text)
+    image_data = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -61,6 +62,7 @@ class Product(db.Model):
             'quality_grade': self.quality_grade, 'status': self.status,
             'farmer_id': self.farmer_id, 'blockchain_hash': self.blockchain_hash,
             'is_flagged': self.is_flagged, 'is_approved': self.is_approved,
+            'has_image': self.image_data is not None,
             'created_at': self.created_at.isoformat()
         }
 
@@ -129,62 +131,36 @@ class AuditLog(db.Model):
 
 
 def seed_data():
-    if User.query.count() > 0:
-        return
-
-    users = [
-        User(name='Admin User', email='admin@agrichain.ug', password=generate_password_hash('admin123'), role='admin', location='Kampala'),
-        User(name='John Muhindo', email='farmer@agrichain.ug', password=generate_password_hash('farmer123'), role='farmer', location='Kasese', phone='+256700000001'),
-        User(name='Grace Birungi', email='buyer@agrichain.ug', password=generate_password_hash('buyer123'), role='buyer', location='Kampala', phone='+256700000002'),
-        User(name='David Bwambale', email='transporter@agrichain.ug', password=generate_password_hash('transport123'), role='transporter', location='Kasese', phone='+256700000003'),
-        User(name='Dr. Ruth Kyomugisha', email='regulator@agrichain.ug', password=generate_password_hash('regulator123'), role='regulator', location='Kampala', phone='+256700000004'),
-        User(name='Peter Kato', email='farmer2@agrichain.ug', password=generate_password_hash('farmer123'), role='farmer', location='Kasese', phone='+256700000005'),
-    ]
-    db.session.add_all(users)
-    db.session.flush()
-
-    from blockchain import Blockchain
-    bc = Blockchain()
-
-    products_data = [
-        ('Maize', 500, 'Hima, Kasese', '2024-03-15', 'A', 'delivered'),
-        ('Coffee', 200, 'Kilembe, Kasese', '2024-03-10', 'A+', 'approved'),
-        ('Beans', 150, 'Bugoye, Kasese', '2024-03-20', 'B', 'in_transit'),
-        ('Tomatoes', 80, 'Maliba, Kasese', '2024-03-22', 'A', 'harvested'),
-        ('Maize', 300, 'Rukoki, Kasese', '2024-03-18', 'A', 'transferred'),
-        ('Sorghum', 120, 'Kisinga, Kasese', '2024-03-12', 'B+', 'delivered'),
+    """
+    Ensures all test accounts exist with the correct passwords.
+    Safe to run on every startup — upserts by email instead of
+    checking total user count, so existing data is never wiped.
+    """
+    test_users = [
+        {'name': 'Admin User',         'email': 'admin@agrichain.ug',       'password': 'admin123',      'role': 'admin',       'location': 'Kampala'},
+        {'name': 'John Muhindo',        'email': 'farmer@agrichain.ug',      'password': 'farmer123',     'role': 'farmer',      'location': 'Kasese',  'phone': '+256700000001'},
+        {'name': 'Grace Birungi',       'email': 'buyer@agrichain.ug',       'password': 'buyer123',      'role': 'buyer',       'location': 'Kampala', 'phone': '+256700000002'},
+        {'name': 'David Bwambale',      'email': 'transporter@agrichain.ug', 'password': 'transport123',  'role': 'transporter', 'location': 'Kasese',  'phone': '+256700000003'},
+        {'name': 'Dr. Ruth Kyomugisha', 'email': 'regulator@agrichain.ug',   'password': 'regulator123',  'role': 'regulator',   'location': 'Kampala', 'phone': '+256700000004'},
+        {'name': 'Peter Kato',          'email': 'farmer2@agrichain.ug',     'password': 'farmer123',     'role': 'farmer',      'location': 'Kasese',  'phone': '+256700000005'},
     ]
 
-    from datetime import date
-    for i, (crop, qty, loc, hdate, grade, status) in enumerate(products_data):
-        farmer_id = users[1].id if i % 2 == 0 else users[5].id
-        p = Product(
-            product_code=f'PC-2024-{str(i+1).zfill(4)}',
-            crop_type=crop, quantity=qty, unit='kg',
-            location=loc, district='Kasese',
-            harvest_date=date.fromisoformat(hdate),
-            quality_grade=grade, status=status,
-            farmer_id=farmer_id,
-            current_owner_id=users[2].id if status in ['delivered', 'approved'] else farmer_id,
-            is_approved=(status == 'approved'),
-            notes=f'Sample {crop} harvest from Kasese district'
-        )
-        db.session.add(p)
-        db.session.flush()
-
-        block = bc.add_block({'action': 'harvested', 'product_id': p.id, 'crop': crop, 'farmer': users[farmer_id - 1].name if farmer_id <= len(users) else 'Farmer'})
-        p.blockchain_hash = block.hash
-
-        tx = Transaction(
-            tx_id=f'TX{p.id:04d}A',
-            product_id=p.id,
-            action='harvested',
-            sender_id=farmer_id,
-            block_index=block.index,
-            block_hash=block.hash,
-            previous_hash=block.previous_hash,
-            payload=f'{{"crop":"{crop}","qty":{qty},"location":"{loc}"}}'
-        )
-        db.session.add(tx)
+    for u in test_users:
+        existing = User.query.filter_by(email=u['email']).first()
+        if existing:
+            # Reset password in case it got corrupted
+            existing.password = generate_password_hash(u['password'])
+            existing.is_active = True
+        else:
+            new_user = User(
+                name=u['name'],
+                email=u['email'],
+                password=generate_password_hash(u['password']),
+                role=u['role'],
+                location=u.get('location', ''),
+                phone=u.get('phone', ''),
+            )
+            db.session.add(new_user)
 
     db.session.commit()
+    print("Seed: test accounts verified/created.")

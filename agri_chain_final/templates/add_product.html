@@ -8,8 +8,9 @@
       <small class="text-muted">This will create an immutable blockchain record</small>
     </div>
     <div class="card p-4">
-      <form method="POST" action="/farmer/add_product">
+      <form method="POST" action="/farmer/add_product" enctype="multipart/form-data">
         <div class="row g-3">
+
           <div class="col-md-6">
             <label class="form-label fw-semibold">Crop Type <span class="text-danger">*</span></label>
             <select name="crop_type" class="form-select" required>
@@ -26,14 +27,17 @@
               <option>Groundnuts</option>
             </select>
           </div>
+
           <div class="col-md-6">
             <label class="form-label fw-semibold">Quantity (kg) <span class="text-danger">*</span></label>
             <input type="number" name="quantity" class="form-control" min="1" step="0.1" placeholder="500" required>
           </div>
+
           <div class="col-md-6">
             <label class="form-label fw-semibold">Harvest Date <span class="text-danger">*</span></label>
             <input type="date" name="harvest_date" class="form-control" required>
           </div>
+
           <div class="col-md-6">
             <label class="form-label fw-semibold">Quality Grade</label>
             <select name="quality_grade" class="form-select">
@@ -44,29 +48,95 @@
               <option value="C">C (Low)</option>
             </select>
           </div>
+
           <div class="col-12">
             <label class="form-label fw-semibold">Farm Location <span class="text-danger">*</span></label>
             <input type="text" name="location" class="form-control" placeholder="e.g., Hima, Kasese District" required>
           </div>
+
           <div class="col-12">
             <label class="form-label fw-semibold">Notes</label>
             <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes about this harvest..."></textarea>
           </div>
+
+          <!-- ── PHOTO UPLOAD ── -->
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-camera me-1"></i>Produce Photo <span class="text-muted fw-normal">(optional)</span>
+            </label>
+
+            <!-- Upload box -->
+            <div id="upload-area" onclick="document.getElementById('produce_image').click()"
+              style="border: 2px dashed #adb5bd; border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; background: #f8f9fa; transition: border-color 0.2s;">
+              <i class="bi bi-cloud-arrow-up fs-2 text-muted"></i>
+              <p class="mb-1 mt-2 text-muted" style="font-size:0.9rem">Tap to take a photo or choose from gallery</p>
+              <p class="text-muted" style="font-size:0.75rem">JPG, PNG — max 5MB</p>
+            </div>
+
+            <!-- Hidden file input — accept="image/*;capture=camera" lets mobile open camera directly -->
+            <input type="file" id="produce_image" name="produce_image"
+              accept="image/*" capture="environment"
+              class="d-none" onchange="previewImage(event)">
+
+            <!-- Preview -->
+            <div id="preview-wrapper" class="mt-3 d-none">
+              <img id="img-preview" src="#" alt="Produce preview"
+                style="max-width:100%; max-height:260px; border-radius:10px; object-fit:cover; border:1px solid #dee2e6;">
+              <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearImage()">
+                  <i class="bi bi-x-circle me-1"></i>Remove photo
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- ── END PHOTO UPLOAD ── -->
+
           <div class="col-12">
             <div class="alert alert-info d-flex align-items-center gap-2" style="font-size:0.85rem">
               <i class="bi bi-shield-lock fs-5"></i>
               <div>Submitting this form will mine a new <strong>SHA-256 blockchain block</strong> and permanently record this harvest. This action cannot be undone.</div>
             </div>
           </div>
+
           <div class="col-12">
             <button type="submit" class="btn btn-primary py-2 px-4">
               <i class="bi bi-cpu me-2"></i>Mine Block & Register Product
             </button>
             <a href="/farmer/dashboard" class="btn btn-outline-secondary py-2 px-4 ms-2">Cancel</a>
           </div>
+
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+function previewImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validate size (5MB max)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Photo is too large. Please choose an image under 5MB.');
+    clearImage();
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('img-preview').src = e.target.result;
+    document.getElementById('preview-wrapper').classList.remove('d-none');
+    document.getElementById('upload-area').style.borderColor = '#1a6b3c';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  document.getElementById('produce_image').value = '';
+  document.getElementById('img-preview').src = '#';
+  document.getElementById('preview-wrapper').classList.add('d-none');
+  document.getElementById('upload-area').style.borderColor = '#adb5bd';
+}
+</script>
 {% endblock %}

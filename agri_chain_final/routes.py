@@ -53,31 +53,51 @@ def add_product():
         grade = request.form.get('quality_grade', 'A')
         notes = request.form.get('notes', '')
         code = f'PC-{datetime.utcnow().strftime("%Y%m%d")}-{str(uuid.uuid4())[:6].upper()}'
+
+        # ── Handle produce photo ──
+        image_data = None
+        photo = request.files.get('produce_image')
+        if photo and photo.filename:
+            mime = photo.mimetype or 'image/jpeg'
+            raw = photo.read()
+            # Reject files over 5MB
+            if len(raw) <= 5 * 1024 * 1024:
+                encoded = base64.b64encode(raw).decode('utf-8')
+                image_data = f'data:{mime};base64,{encoded}'
+
         p = Product(
             product_code=code, crop_type=crop, quantity=qty, unit='kg',
             location=loc, district='Kasese', harvest_date=hdate,
             quality_grade=grade, status='harvested',
             farmer_id=session['user_id'], current_owner_id=session['user_id'],
-            notes=notes
+            notes=notes,
+            image_data=image_data   # ← saved to DB
         )
         db.session.add(p)
         db.session.flush()
+
         bc = Blockchain()
-        block = bc.add_block({'action': 'harvested', 'product_id': p.id, 'crop': crop,
-                               'farmer_id': session['user_id'], 'qty': qty, 'location': loc})
+        block = bc.add_block({
+            'action': 'harvested', 'product_id': p.id, 'crop': crop,
+            'farmer_id': session['user_id'], 'qty': qty, 'location': loc,
+            'has_photo': image_data is not None
+        })
         p.blockchain_hash = block.hash
+
         tx = Transaction(
             tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
             product_id=p.id, action='harvested',
             sender_id=session['user_id'],
             block_index=block.index, block_hash=block.hash,
             previous_hash=block.previous_hash,
-            payload=json.dumps({'crop': crop, 'qty': qty, 'location': loc, 'grade': grade})
+            payload=json.dumps({'crop': crop, 'qty': qty, 'location': loc, 'grade': grade, 'has_photo': image_data is not None})
         )
         db.session.add(tx)
         db.session.commit()
+
         flash(f'Product {code} added to blockchain!', 'success')
         return redirect(url_for('main.farmer_dashboard'))
+
     return render_template('add_product.html')
 
 @main_bp.route('/farmer/transfer/<int:product_id>', methods=['POST'])
@@ -320,3 +340,19 @@ def api_products():
 def api_chain():
     bc = Blockchain()
     return jsonify({'chain': bc.get_chain(), 'valid': bc.is_chain_valid()})
+
+
+# ─── PWA ──────────────────────────────────────────────────────────────────────
+
+@main_bp.route('/manifest.json')
+def manifest():
+    from flask import send_from_directory
+    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
+
+@main_bp.route('/service-worker.js')
+def service_worker():
+    from flask import send_from_directory
+    response = send_from_directory('static', 'service-worker.js', mimetype='application/javascript')
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
