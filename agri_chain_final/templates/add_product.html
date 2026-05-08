@@ -1,5 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Add Product - AgriChain{% endblock %}
+{% block title %}Add Product - AgriChain
+<script>
+function calcTotal() {
+  const price = parseFloat(document.getElementById('price-per-kg').value) || 0;
+  const qty = parseFloat(document.querySelector('[name="quantity"]').value) || 0;
+  const total = price * qty;
+  document.getElementById('total-value').value = total > 0
+    ? 'UGX ' + total.toLocaleString()
+    : '';
+}
+// Recalculate when quantity changes too
+document.querySelector('[name="quantity"]').addEventListener('input', calcTotal);
+</script>
+{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-7">
@@ -57,6 +70,30 @@
           <div class="col-12">
             <label class="form-label fw-semibold">Notes</label>
             <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes about this harvest..."></textarea>
+          </div>
+
+          <!-- Price -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">
+              Price per kg (UGX) <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text">UGX</span>
+              <input type="number" name="price_per_kg" id="price-per-kg"
+                class="form-control" min="1" step="1"
+                placeholder="e.g. 800" required
+                oninput="calcTotal()">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Total Batch Value (UGX)</label>
+            <div class="input-group">
+              <span class="input-group-text">UGX</span>
+              <input type="text" id="total-value" class="form-control"
+                placeholder="Auto-calculated" readonly
+                style="background:#f8f9fa;font-weight:600;color:#1a6b3c">
+            </div>
+            <small class="text-muted">= Price/kg × Quantity</small>
           </div>
 
           <!-- ── PHOTO UPLOAD ── -->
@@ -138,5 +175,18 @@ function clearImage() {
   document.getElementById('preview-wrapper').classList.add('d-none');
   document.getElementById('upload-area').style.borderColor = '#adb5bd';
 }
+</script>
+
+<script>
+function calcTotal() {
+  const price = parseFloat(document.getElementById('price-per-kg').value) || 0;
+  const qty = parseFloat(document.querySelector('[name="quantity"]').value) || 0;
+  const total = price * qty;
+  document.getElementById('total-value').value = total > 0
+    ? 'UGX ' + total.toLocaleString()
+    : '';
+}
+// Recalculate when quantity changes too
+document.querySelector('[name="quantity"]').addEventListener('input', calcTotal);
 </script>
 {% endblock %}

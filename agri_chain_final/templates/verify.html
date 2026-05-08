@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if product %}{{ product.crop_type }} · {{ product.product_code }}{% else %}Verify Product · AgriChain{% endif %}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-deep: #0a1f0f;
+    --green-mid: #1a6b3c;
+    --green-bright: #2d9e5f;
+    --gold: #f4a820;
+    --gold-dim: rgba(244,168,32,0.15);
+    --gold-border: rgba(244,168,32,0.3);
+    --white: #f0f4f1;
+    --muted: rgba(240,244,241,0.5);
+    --card-bg: rgba(255,255,255,0.04);
+    --card-border: rgba(255,255,255,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--green-deep);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(26,107,60,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26,107,60,0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── glow ── */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(26,107,60,0.25) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  /* ── header ── */
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--gold);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .logo span { color: var(--white); font-weight: 400; }
+
+  .verify-badge {
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    color: var(--gold);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  /* ── search section ── */
+  .search-section {
+    margin-bottom: 2rem;
+  }
+
+  .search-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+    display: block;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .search-input {
+    flex: 1;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-input::placeholder { color: var(--muted); }
+  .search-input:focus { border-color: var(--green-bright); }
+
+  .search-btn {
+    background: var(--green-mid);
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+
+  .search-btn:hover { background: var(--green-bright); }
+
+  /* ── not found ── */
+  .not-found {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+  }
+
+  .not-found i { font-size: 2.5rem; color: rgba(244,168,32,0.4); margin-bottom: 1rem; display: block; }
+
+  /* ── hero product card ── */
+  .product-hero {
+    background: linear-gradient(135deg, rgba(26,107,60,0.3), rgba(10,31,15,0.8));
+    border: 1px solid rgba(26,107,60,0.4);
+    border-radius: 20px;
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .product-hero::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(244,168,32,0.12), transparent 70%);
+    pointer-events: none;
+  }
+
+  .product-code {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--gold);
+    letter-spacing: 1px;
+    margin-bottom: 0.4rem;
+  }
+
+  .product-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+  }
+
+  .status-approved { background: rgba(45,158,95,0.2); border: 1px solid rgba(45,158,95,0.4); color: #2d9e5f; }
+  .status-flagged  { background: rgba(220,53,69,0.2);  border: 1px solid rgba(220,53,69,0.4);  color: #dc3545; }
+  .status-default  { background: rgba(244,168,32,0.15); border: 1px solid rgba(244,168,32,0.3); color: var(--gold); }
+
+  .product-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .meta-item { }
+  .meta-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+  }
+  .meta-value {
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: var(--white);
+  }
+
+  /* ── photo ── */
+  .product-photo {
+    width: 100%;
+    border-radius: 14px;
+    max-height: 240px;
+    object-fit: cover;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--card-border);
+  }
+
+  /* ── blockchain hash card ── */
+  .hash-card {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .hash-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .hash-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    word-break: break-all;
+    line-height: 1.6;
+  }
+
+  /* ── section title ── */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--card-border);
+  }
+
+  /* ── timeline ── */
+  .timeline { position: relative; padding-left: 1.5rem; }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--green-mid), transparent);
+  }
+
+  .tl-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+    animation: fadeSlideIn 0.4s ease both;
+  }
+
+  .tl-item:nth-child(1) { animation-delay: 0.05s; }
+  .tl-item:nth-child(2) { animation-delay: 0.1s; }
+  .tl-item:nth-child(3) { animation-delay: 0.15s; }
+  .tl-item:nth-child(4) { animation-delay: 0.2s; }
+  .tl-item:nth-child(5) { animation-delay: 0.25s; }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .tl-dot {
+    position: absolute;
+    left: -1.5rem;
+    top: 4px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--green-mid);
+    border: 2px solid var(--green-bright);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .tl-dot.gold { background: var(--gold); border-color: var(--gold); }
+
+  .tl-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+  }
+
+  .tl-action {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    text-transform: capitalize;
+  }
+
+  .tl-people {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .tl-people strong { color: var(--white); }
+
+  .tl-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: rgba(240,244,241,0.3);
+    line-height: 1.8;
+  }
+
+  .tl-time {
+    font-size: 0.72rem;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  /* ── action icons per stage ── */
+  .stage-icon {
+    font-size: 0.8rem;
+    margin-right: 0.3rem;
+  }
+
+  /* ── verified footer ── */
+  .verified-footer {
+    margin-top: 2rem;
+    text-align: center;
+    padding: 1.25rem;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    border-radius: 14px;
+  }
+
+  .verified-footer i { color: var(--gold); font-size: 1.4rem; display: block; margin-bottom: 0.4rem; }
+  .verified-footer p { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+  .verified-footer strong { color: var(--gold); }
+
+  /* ── home link ── */
+  .back-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    text-decoration: none;
+    margin-bottom: 2rem;
+    transition: color 0.2s;
+  }
+  .back-home:hover { color: var(--white); }
+
+  /* ── no tx ── */
+  .no-tx {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    .product-name { font-size: 1.5rem; }
+    .product-meta { grid-template-columns: 1fr; }
+  }
+
+  .verify-btn {
+    background: rgba(26,107,60,0.3);
+    border: 1px solid rgba(26,107,60,0.5);
+    color: var(--white);
+    border-radius: 10px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .verify-btn:hover { background: rgba(26,107,60,0.5); }
+  .verify-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .result-pass {
+    background: rgba(45,158,95,0.15);
+    border: 1px solid rgba(45,158,95,0.4);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .result-fail {
+    background: rgba(220,53,69,0.15);
+    border: 1px solid rgba(220,53,69,0.4);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .result-pass .result-title { color: #2d9e5f; }
+  .result-fail .result-title { color: #dc3545; }
+  .result-detail {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .result-hash {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    word-break: break-all;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+  }
+  .result-pass .result-hash { color: #2d9e5f; }
+  .result-fail .result-hash { color: #dc3545; }
+
+  /* dropdown select styling */
+  select.search-input {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23f4a820' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+    font-family: 'DM Sans', sans-serif;
+  }
+  select.search-input option {
+    background: #0d1f13;
+    color: #f0f4f1;
+    font-size: 0.85rem;
+  }
+  details summary { list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- Header -->
+  <header class="site-header">
+    <a href="/" class="logo"><i class="bi bi-boxes"></i>Agri<span>Chain</span></a>
+    <span class="verify-badge"><i class="bi bi-shield-check me-1"></i>Public Verify</span>
+  </header>
+
+  <!-- Search -->
+  <div class="search-section">
+    <span class="search-label"><i class="bi bi-search me-1"></i>Select a product to verify</span>
+    <form method="GET" action="/verify">
+      <div class="search-row">
+        <select name="q" class="search-input" onchange="this.form.submit()" style="cursor:pointer">
+          <option value="">— Choose a product —</option>
+          {% for p in all_products %}
+          <option value="{{ p.product_code }}"
+            {% if query == p.product_code %}selected{% endif %}>
+            {{ p.crop_type }} · {{ p.quantity }}kg · {{ p.location }} · {{ p.product_code }}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="search-btn"><i class="bi bi-search me-1"></i>Verify</button>
+      </div>
+    </form>
+
+    <!-- Also allow QR / manual code entry as fallback -->
+    <details style="margin-top:0.6rem">
+      <summary style="font-size:0.72rem;color:var(--muted);cursor:pointer;letter-spacing:0.5px">
+        Or enter product code manually (e.g. from QR scan)
+      </summary>
+      <form method="GET" action="/verify" style="margin-top:0.5rem">
+        <div class="search-row">
+          <input type="text" name="q" class="search-input"
+            placeholder="PC-20240601-A3F2K1"
+            value="{{ query or '' }}" autocomplete="off" autocapitalize="characters">
+          <button type="submit" class="search-btn"><i class="bi bi-search me-1"></i>Go</button>
+        </div>
+      </form>
+    </details>
+  </div>
+
+
+  <!-- Search by name/farmer -->
+  <div class="search-section" style="margin-top:-0.5rem">
+    <span class="search-label"><i class="bi bi-person-search me-1"></i>Or search by crop name, farmer or location</span>
+    <form method="GET" action="/verify">
+      <div class="search-row">
+        <input type="text" name="search" class="search-input"
+          placeholder="e.g. Maize, John Muhindo, Kasese..."
+          value="{{ search or '' }}" autocomplete="off">
+        <button type="submit" class="search-btn"><i class="bi bi-search me-1"></i>Search</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Search results list -->
+  {% if search_results %}
+  <div style="margin-bottom:1.5rem">
+    <div class="section-title">Search Results for "{{ search }}"</div>
+    {% for p in search_results %}
+    <a href="/verify?q={{ p.product_code }}" style="text-decoration:none">
+      <div class="tl-card" style="margin-bottom:0.75rem;display:flex;align-items:center;gap:1rem;transition:border-color 0.2s"
+        onmouseover="this.style.borderColor='#2d9e5f'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">
+        {% if p.image_data %}
+        <img src="{{ p.image_data }}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0">
+        {% else %}
+        <div style="width:48px;height:48px;border-radius:8px;background:rgba(26,107,60,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="bi bi-flower1" style="color:#f4a820"></i>
+        </div>
+        {% endif %}
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:0.95rem">{{ p.crop_type }} · {{ p.quantity }}kg</div>
+          <div style="font-size:0.78rem;color:var(--muted)">
+            <i class="bi bi-person me-1"></i>{{ p.farmer.name }} ·
+            <i class="bi bi-geo-alt me-1"></i>{{ p.location }}
+          </div>
+          <div style="font-size:0.68rem;font-family:monospace;color:rgba(244,168,32,0.6)">{{ p.product_code }}</div>
+        </div>
+        <i class="bi bi-chevron-right" style="color:var(--muted)"></i>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% elif search %}
+  <div class="not-found">
+    <i class="bi bi-search"></i>
+    <p>No products found for "<strong style="color:var(--gold)">{{ search }}</strong>"</p>
+  </div>
+  {% endif %}
+
+  <!-- Not found -->
+  {% if query and not product %}
+  <div class="not-found">
+    <i class="bi bi-exclamation-circle"></i>
+    <p style="font-size:1rem;font-weight:600;margin-bottom:0.5rem">Product not found</p>
+    <p style="font-size:0.85rem">No product matches <strong style="color:var(--gold)">{{ query }}</strong>. Check the code and try again.</p>
+  </div>
+  {% endif %}
+
+  <!-- Product found -->
+  {% if product %}
+
+  <!-- Hero card -->
+  <div class="product-hero">
+    {% if product.image_data %}
+    <img src="{{ product.image_data }}" alt="{{ product.crop_type }}" class="product-photo">
+    {% endif %}
+
+    <div class="product-code"><i class="bi bi-upc-scan me-1"></i>{{ product.product_code }}</div>
+    <div class="product-name">{{ product.crop_type }}<br><span style="color:var(--gold)">{{ product.quantity }} kg</span></div>
+
+    <!-- Status -->
+    {% if product.is_flagged %}
+    <div class="status-pill status-flagged"><i class="bi bi-exclamation-triangle-fill"></i> Flagged for Review</div>
+    {% elif product.is_approved %}
+    <div class="status-pill status-approved"><i class="bi bi-patch-check-fill"></i> UNBS Approved</div>
+    {% else %}
+    <div class="status-pill status-default"><i class="bi bi-clock"></i> {{ product.status.replace('_',' ').title() }}</div>
+    {% endif %}
+
+    <!-- Meta grid -->
+    <div class="product-meta">
+      <div class="meta-item">
+        <div class="meta-label">Farmer</div>
+        <div class="meta-value"><i class="bi bi-person-badge me-1" style="color:var(--gold)"></i>{{ product.farmer.name }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Location</div>
+        <div class="meta-value"><i class="bi bi-geo-alt me-1" style="color:var(--gold)"></i>{{ product.location }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">District</div>
+        <div class="meta-value">{{ product.district }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Harvest Date</div>
+        <div class="meta-value">{{ product.harvest_date.strftime('%d %b %Y') if product.harvest_date else 'N/A' }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Quality Grade</div>
+        <div class="meta-value" style="color:var(--gold);font-weight:700">{{ product.quality_grade }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Unit</div>
+        <div class="meta-value">{{ product.unit }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Blockchain fingerprint + verify -->
+  <div class="hash-card">
+    <div class="hash-label"><i class="bi bi-shield-lock"></i> Blockchain Fingerprint (SHA-256)</div>
+    <div class="hash-value" id="stored-hash">{{ product.blockchain_hash or 'Not yet recorded' }}</div>
+
+    <div style="margin-top:1rem">
+      <button onclick="verifyIntegrity('{{ product.product_code }}')" class="verify-btn" id="verify-btn">
+        <i class="bi bi-cpu me-2"></i>Verify Blockchain Integrity
+      </button>
+    </div>
+
+    <!-- Result box -->
+    <div id="verify-result" style="display:none;margin-top:1rem"></div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section-title">Supply Chain Journey</div>
+
+  <div class="timeline">
+    {% set stage_icons = {
+      'harvested': 'bi-flower1',
+      'transferred': 'bi-arrow-left-right',
+      'purchased': 'bi-bag-check',
+      'in_transit': 'bi-truck',
+      'delivered': 'bi-house-check',
+      'approved': 'bi-patch-check',
+      'approved_by_regulator': 'bi-clipboard-check'
+    } %}
+
+    {% for tx in transactions %}
+    <div class="tl-item">
+      <div class="tl-dot {% if loop.last %}gold{% endif %}"></div>
+      <div class="tl-card">
+        <div class="tl-time">
+          <i class="bi bi-clock"></i>
+          {{ tx.timestamp.strftime('%d %b %Y · %H:%M') }}
+        </div>
+        <div class="tl-action">
+          <i class="bi {{ stage_icons.get(tx.action, 'bi-circle') }} stage-icon" style="color:var(--gold)"></i>
+          {{ tx.action.replace('_',' ').title() }}
+        </div>
+        <div class="tl-people">
+          <strong>{{ tx.sender.name if tx.sender else 'System' }}</strong>
+          {% if tx.receiver %}
+          <i class="bi bi-arrow-right mx-1"></i>
+          <strong>{{ tx.receiver.name }}</strong>
+          {% endif %}
+        </div>
+        <div class="tl-meta">
+          TX · {{ tx.tx_id }}<br>
+          Block #{{ tx.block_index }} · {{ tx.block_hash[:32] if tx.block_hash else 'N/A' }}...
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="no-tx"><i class="bi bi-hourglass me-2"></i>No transactions recorded yet.</div>
+    {% endfor %}
+  </div>
+
+  <!-- Verified footer -->
+  <div class="verified-footer">
+    <i class="bi bi-shield-check"></i>
+    <p>This product's journey is recorded on the <strong>AgriChain SHA-256 Blockchain</strong>. Every entry is tamper-proof and permanently stored. What you see is exactly what happened — from farm to your hands.</p>
+  </div>
+
+  {% endif %}
+
+</div>
+
+<script>
+async function verifyIntegrity(productCode) {
+  const btn = document.getElementById('verify-btn');
+  const resultBox = document.getElementById('verify-result');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Computing hash...';
+  resultBox.style.display = 'none';
+
+  try {
+    // 1. Fetch block data from server
+    const res = await fetch(`/api/verify_block/${productCode}`);
+    if (!res.ok) throw new Error('Block not found');
+    const block = await res.json();
+
+    // 2. Recompute SHA-256 exactly as Python does
+    // Python: json.dumps({index, timestamp, data, previous_hash, nonce}, sort_keys=True)
+    const blockObj = {
+      data: block.data,
+      index: block.index,
+      nonce: block.nonce,
+      previous_hash: block.previous_hash,
+      timestamp: block.timestamp
+    };
+    // sort_keys=True means alphabetical key order
+    const blockString = JSON.stringify(blockObj, Object.keys(blockObj).sort());
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(blockString));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // 3. Compare
+    const storedHash = block.stored_hash;
+    const match = computedHash === storedHash;
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-cpu me-2"></i>Verify Blockchain Integrity';
+    resultBox.style.display = 'block';
+
+    if (match) {
+      resultBox.innerHTML = `
+        <div class="result-pass">
+          <div class="result-title"><i class="bi bi-patch-check-fill"></i> Data Intact — Hash Verified</div>
+          <div class="result-detail">
+            The SHA-256 hash was recomputed live in your browser using the raw block data
+            and matches the hash stored on the blockchain exactly.<br>
+            <strong style="color:#2d9e5f">This product has not been tampered with.</strong>
+          </div>
+          <div class="result-hash">✓ ${computedHash}</div>
+        </div>`;
+    } else {
+      resultBox.innerHTML = `
+        <div class="result-fail">
+          <div class="result-title"><i class="bi bi-exclamation-triangle-fill"></i> Warning — Hash Mismatch</div>
+          <div class="result-detail">
+            The recomputed hash does not match the stored blockchain hash.
+            This may indicate the product data was altered after recording.<br>
+            <strong style="color:#dc3545">Do not trust this product record.</strong>
+          </div>
+          <div class="result-hash">
+            Stored:   ${storedHash}<br>
+            Computed: ${computedHash}
+          </div>
+        </div>`;
+    }
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-cpu me-2"></i>Verify Blockchain Integrity';
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `
+      <div class="result-fail">
+        <div class="result-title"><i class="bi bi-x-circle"></i> Verification Failed</div>
+        <div class="result-detail">${err.message}</div>
+      </div>`;
+  }
+}
+</script>
+</body>
+</html>

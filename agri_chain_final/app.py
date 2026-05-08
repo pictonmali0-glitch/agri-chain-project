@@ -6,13 +6,16 @@ from models import db, seed_data
 from auth import auth_bp
 from routes import main_bp
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(
+        __name__,
+        static_folder=os.path.join(BASE_DIR, 'static'),
+        static_url_path='/static'
+    )
 
     app.config.from_object(Config)
-
-    # SECRET KEY
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_123')
 
     db.init_app(app)
@@ -22,23 +25,29 @@ def create_app():
 
     with app.app_context():
         db.create_all()
-        _migrate()      # add any missing columns safely
-        seed_data()     # seed test users if DB is empty
+        _migrate()      # ← MUST run before seed_data
+        seed_data()
 
     return app
 
 
 def _migrate():
     """Safely add new columns to existing tables without wiping data."""
-    try:
-        db.session.execute(db.text(
-            "ALTER TABLE products ADD COLUMN image_data TEXT"
-        ))
-        db.session.commit()
-        print("Migration: added image_data column to products.")
-    except Exception:
-        # Column already exists — safe to ignore
-        db.session.rollback()
+    migrations = [
+        "ALTER TABLE products ADD COLUMN image_data TEXT",
+        "ALTER TABLE users ADD COLUMN webauthn_credential_id TEXT",
+        "ALTER TABLE users ADD COLUMN webauthn_public_key TEXT",
+        "ALTER TABLE users ADD COLUMN webauthn_sign_count INTEGER DEFAULT 0",
+        "ALTER TABLE products ADD COLUMN price_per_kg FLOAT",
+        "ALTER TABLE products ADD COLUMN resale_price_per_kg FLOAT",
+    ]
+    for sql in migrations:
+        try:
+            db.session.execute(db.text(sql))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    print("Migrations complete.")
 
 
 app = create_app()

@@ -18,89 +18,53 @@
   --text: #1a2a1e;
   --border: #d4e4d8;
 }
+* { box-sizing: border-box; }
+body { background: var(--surface); margin: 0; }
+.navbar { background: var(--dark) !important; }
 
-/* RESET */
-* {
-  box-sizing: border-box;
-}
-
-body {
-  background: var(--surface);
-  margin: 0;
-}
-
-/* NAVBAR */
-.navbar {
-  background: var(--dark) !important;
-}
-
-/* SIDEBAR */
 .sidebar {
   width: 240px;
   position: fixed;
-  top: 56px;
-  left: 0;
+  top: 56px; left: 0;
   height: calc(100vh - 56px);
   background: var(--dark);
   overflow-y: auto;
   z-index: 1000;
   transition: transform 0.3s ease;
 }
+.sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 10px 20px; display:flex; align-items:center; gap:8px; }
+.sidebar .nav-link:hover { color: var(--accent); background: rgba(255,255,255,0.05); }
+.sidebar .nav-link.active { color: var(--accent); border-left: 3px solid var(--accent); }
+.sidebar-section { color: rgba(255,255,255,0.3); font-size:0.68rem; letter-spacing:1.5px; text-transform:uppercase; padding: 12px 20px 4px; }
 
-.sidebar .nav-link {
-  color: rgba(255,255,255,0.7);
-  padding: 10px 20px;
-}
+.main-content { margin-left: 240px; padding: 20px; }
 
-.sidebar .nav-link:hover {
-  color: var(--accent);
-}
+/* stat cards */
+.stat-card { border-radius:12px; padding:1.2rem; color:white; }
+.stat-card.green { background: linear-gradient(135deg,#1a6b3c,#2d9e5f); }
+.stat-card.amber { background: linear-gradient(135deg,#f4a820,#e8920a); }
+.stat-card.blue  { background: linear-gradient(135deg,#0d6efd,#0a58ca); }
+.stat-num  { font-size:1.8rem; font-weight:800; line-height:1; }
+.stat-label{ font-size:0.78rem; opacity:0.85; margin-top:4px; }
 
-/* MAIN CONTENT */
-.main-content {
-  margin-left: 240px;
-  padding: 20px;
-}
+/* badge status */
+.badge-status { padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:600; }
+.badge-harvested  { background:#d1fae5; color:#065f46; }
+.badge-transferred{ background:#dbeafe; color:#1e40af; }
+.badge-purchased  { background:#fef3c7; color:#92400e; }
+.badge-in_transit { background:#e0e7ff; color:#3730a3; }
+.badge-delivered  { background:#d1fae5; color:#065f46; }
+.badge-approved   { background:#bbf7d0; color:#14532d; }
 
-/* MOBILE FIXES */
+.hash-text { font-family:monospace; font-size:0.72rem; color:#888; }
+
 @media (max-width: 768px) {
-
-  /* Hide sidebar by default */
-  .sidebar {
-    transform: translateX(-100%);
-  }
-
-  /* Show sidebar when active */
-  .sidebar.active {
-    transform: translateX(0);
-  }
-
-  /* Remove margin so content fills screen */
-  .main-content {
-    margin-left: 0;
-    padding: 15px;
-  }
-
-  /* Fix buttons */
-  button, .btn {
-    width: 100%;
-  }
-
-  /* Prevent elements from overlapping */
-  .container, .card {
-    width: 100% !important;
-  }
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.active { transform: translateX(0); }
+  .main-content { margin-left: 0; padding: 15px; }
 }
-
-/* FIX CLICK BLOCKING */
-.sidebar,
-.navbar {
-  pointer-events: auto;
-}
-
-.main-content * {
-  pointer-events: auto;
-}
+.sidebar, .navbar { pointer-events: auto; }
+.main-content * { pointer-events: auto; }
 </style>
 
 {% block extra_css %}{% endblock %}
@@ -110,7 +74,7 @@ body {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AgriChain">
-<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -125,59 +89,96 @@ body {
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg sticky-top">
   <div class="container-fluid">
-
-    <!-- TOGGLE BUTTON (mobile) -->
-    <button class="btn btn-outline-light d-md-none" onclick="toggleSidebar()">
+    <button class="btn btn-outline-light d-md-none me-2" onclick="toggleSidebar()">
       <i class="bi bi-list"></i>
     </button>
-
-    <a class="navbar-brand ms-2" href="/">AgriChain</a>
-
-    <div class="ms-auto">
+    <a class="navbar-brand" href="/">
+      <i class="bi bi-boxes me-1" style="color:#f4a820"></i>
+      <span style="color:#f4a820;font-weight:800">Agri</span><span class="text-white fw-light">Chain</span>
+    </a>
+    <div class="ms-auto d-flex align-items-center gap-2">
       {% if session.user_id %}
-        <span class="text-white me-2">{{ session.user_name }}</span>
-        <a href="/auth/logout" class="btn btn-sm btn-outline-light">Logout</a>
+        <span class="text-white me-1" style="font-size:0.85rem">
+          <i class="bi bi-person-circle me-1"></i>{{ session.user_name }}
+        </span>
+        <span class="badge" style="background:rgba(244,168,32,0.2);color:#f4a820;border:1px solid rgba(244,168,32,0.3);font-size:0.7rem">
+          {{ session.user_role|title }}
+        </span>
+        <a href="/auth/logout" class="btn btn-sm btn-outline-light ms-1">Logout</a>
       {% else %}
         <a href="/auth/login" class="btn btn-sm btn-outline-light">Login</a>
         <a href="/auth/register" class="btn btn-sm btn-warning">Register</a>
       {% endif %}
     </div>
-
   </div>
 </nav>
 
 {% if session.user_id %}
-<!-- SIDEBAR -->
+<!-- SIDEBAR — role based -->
 <div id="sidebar" class="sidebar">
 
-  <a href="/farmer/dashboard" class="nav-link">Dashboard</a>
-  <a href="/track" class="nav-link">Track</a>
-  <a href="/blockchain_explorer" class="nav-link">Blockchain</a>
+  <div class="sidebar-section">Main</div>
+
+  {% if session.user_role == 'farmer' %}
+    <a href="/farmer/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/farmer/add_product" class="nav-link"><i class="bi bi-plus-circle"></i>Add Product</a>
+    <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
+
+  {% elif session.user_role == 'buyer' %}
+    <a href="/buyer/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
+
+  {% elif session.user_role == 'transporter' %}
+    <a href="/transporter/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
+
+  {% elif session.user_role == 'regulator' %}
+    <a href="/regulator/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
+    <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+
+  {% elif session.user_role == 'admin' %}
+    <a href="/admin/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
+    <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
+    <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+  {% endif %}
+
+  <div class="sidebar-section mt-3">Account</div>
+  <a href="/auth/delete_account" class="nav-link" style="color:rgba(220,53,69,0.7)"
+    onclick="return confirm('Are you sure you want to delete your account? This cannot be undone.')">
+    <i class="bi bi-trash3"></i>Delete Account
+  </a>
 
 </div>
 {% endif %}
 
 <!-- MAIN -->
 <div class="{% if session.user_id %}main-content{% else %}container py-4{% endif %}">
-
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
-      <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      <div class="alert alert-{{ cat }} alert-dismissible fade show">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
     {% endfor %}
   {% endwith %}
-
   {% block content %}{% endblock %}
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("active");
 }
 </script>
-
 {% block extra_js %}{% endblock %}
 </body>
 </html>

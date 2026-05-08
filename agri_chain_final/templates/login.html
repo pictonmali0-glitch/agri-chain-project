@@ -11,14 +11,37 @@
       <form method="POST" action="/auth/login">
         <div class="mb-3">
           <label class="form-label fw-semibold">Email address</label>
-          <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
+          <input type="email" name="email" id="email-input" class="form-control" placeholder="you@example.com" required>
         </div>
         <div class="mb-4">
           <label class="form-label fw-semibold">Password</label>
-          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+          <div class="input-group">
+            <input type="password" name="password" id="login-password" class="form-control" placeholder="••••••••" required>
+            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('login-password', this)">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
         </div>
-        <button type="submit" class="btn btn-primary w-100 py-2">Sign In <i class="bi bi-arrow-right ms-1"></i></button>
+        <button type="submit" class="btn btn-primary w-100 py-2">
+          Sign In <i class="bi bi-arrow-right ms-1"></i>
+        </button>
       </form>
+
+      <div class="d-flex align-items-center my-3">
+        <hr class="flex-grow-1"><span class="mx-2 text-muted" style="font-size:0.8rem">or</span><hr class="flex-grow-1">
+      </div>
+
+      <!-- Fingerprint login -->
+      <div class="mb-3">
+        <label class="form-label fw-semibold" style="font-size:0.85rem">Email for fingerprint login</label>
+        <input type="email" id="bio-email" class="form-control mb-2" placeholder="you@example.com">
+        <button onclick="loginWithFingerprint()" class="btn w-100 py-2" id="bio-btn"
+          style="background:#0d1f13;color:#f4a820;border:1px solid rgba(244,168,32,0.4);font-weight:600">
+          <i class="bi bi-fingerprint me-2" style="font-size:1.1rem"></i>Login with Fingerprint
+        </button>
+        <div id="bio-status" class="mt-2" style="font-size:0.8rem;text-align:center;display:none"></div>
+      </div>
+
       <hr>
       <div class="bg-light p-3 rounded" style="font-size:0.8rem;">
         <strong>Test Credentials:</strong><br>
@@ -29,7 +52,103 @@
         Regulator: regulator@agrichain.ug / regulator123
       </div>
     </div>
-    <p class="text-center mt-3 text-muted">No account? <a href="/auth/register" class="text-success fw-semibold">Register here</a></p>
+    <p class="text-center mt-3 text-muted">
+      No account? <a href="/auth/register" class="text-success fw-semibold">Register here</a>
+    </p>
   </div>
 </div>
+
+<script>
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const icon = btn.querySelector('i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.replace('bi-eye', 'bi-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.replace('bi-eye-slash', 'bi-eye');
+  }
+}
+
+async function loginWithFingerprint() {
+  const email = document.getElementById('bio-email').value.trim();
+  const btn = document.getElementById('bio-btn');
+
+  if (!email) { showStatus('Please enter your email first.', 'warning'); return; }
+  if (!window.PublicKeyCredential) { showStatus('Your browser does not support biometric login.', 'danger'); return; }
+
+  try {
+    btn.disabled = true;
+    showStatus('<i class="bi bi-hourglass-split me-1"></i>Preparing fingerprint scan...', 'info');
+
+    const optRes = await fetch('/auth/webauthn/login/begin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!optRes.ok) { const err = await optRes.json(); throw new Error(err.error || 'Fingerprint not registered'); }
+    const options = await optRes.json();
+
+    options.challenge = base64urlToBuffer(options.challenge);
+    options.allowCredentials = options.allowCredentials.map(c => ({ ...c, id: base64urlToBuffer(c.id) }));
+
+    showStatus('<i class="bi bi-fingerprint me-1"></i>Touch your fingerprint sensor...', 'info');
+    const assertion = await navigator.credentials.get({ publicKey: options });
+
+    const verifyRes = await fetch('/auth/webauthn/login/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        id: assertion.id,
+        rawId: bufferToBase64url(assertion.rawId),
+        response: {
+          authenticatorData: bufferToBase64url(assertion.response.authenticatorData),
+          clientDataJSON: bufferToBase64url(assertion.response.clientDataJSON),
+          signature: bufferToBase64url(assertion.response.signature),
+          userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null
+        },
+        type: assertion.type
+      })
+    });
+
+    const result = await verifyRes.json();
+    if (result.success) {
+      showStatus('<i class="bi bi-check-circle me-1"></i>Verified! Logging you in...', 'success');
+      setTimeout(() => window.location.href = result.redirect, 800);
+    } else {
+      throw new Error(result.error || 'Fingerprint verification failed');
+    }
+  } catch (err) {
+    showStatus('<i class="bi bi-x-circle me-1"></i>' + err.message, 'danger');
+    btn.disabled = false;
+  }
+}
+
+function showStatus(msg, type) {
+  const status = document.getElementById('bio-status');
+  const colors = { info:'#0d6efd', success:'#198754', danger:'#dc3545', warning:'#ffc107' };
+  status.style.display = 'block';
+  status.style.color = colors[type] || '#333';
+  status.innerHTML = msg;
+}
+
+function base64urlToBuffer(base64url) {
+  const padding = '='.repeat((4 - base64url.length % 4) % 4);
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/') + padding;
+  const binary = atob(base64);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return buffer;
+}
+
+function bufferToBase64url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+</script>
 {% endblock %}

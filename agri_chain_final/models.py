@@ -15,6 +15,10 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     location = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # WebAuthn / biometric login
+    webauthn_credential_id = db.Column(db.Text, nullable=True)
+    webauthn_public_key    = db.Column(db.Text, nullable=True)
+    webauthn_sign_count    = db.Column(db.Integer, default=0)
 
     products = db.relationship('Product', backref='farmer', lazy=True, foreign_keys='Product.farmer_id')
 
@@ -46,6 +50,9 @@ class Product(db.Model):
     is_approved = db.Column(db.Boolean, default=False)
     notes = db.Column(db.Text)
     image_data = db.Column(db.Text, nullable=True)
+    # ── Price system ──
+    price_per_kg = db.Column(db.Float, nullable=True)        # farmer sets this
+    resale_price_per_kg = db.Column(db.Float, nullable=True) # buyer/distributor sets this
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -63,6 +70,8 @@ class Product(db.Model):
             'farmer_id': self.farmer_id, 'blockchain_hash': self.blockchain_hash,
             'is_flagged': self.is_flagged, 'is_approved': self.is_approved,
             'has_image': self.image_data is not None,
+            'price_per_kg': self.price_per_kg,
+            'resale_price_per_kg': self.resale_price_per_kg,
             'created_at': self.created_at.isoformat()
         }
 
