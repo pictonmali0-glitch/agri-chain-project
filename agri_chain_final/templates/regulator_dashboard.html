@@ -58,14 +58,19 @@
             <td>{{ p.crop_type }}</td>
             <td>{{ p.farmer.name }}</td>
             <td style="font-size:0.8rem">{{ p.location }}</td>
-            <td><span class="badge bg-light text-dark border">{{ p.quality_grade }}</span></td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ p.quality_grade }}</span>
+              {% if p.quality_grade == 'Pending' %}
+              <span class="badge bg-warning text-dark ms-1">Awaiting Grade</span>
+              {% endif %}
+            </td>
             <td>
               <span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span>
               {% if p.is_flagged %}<span class="badge-status badge-flagged ms-1">Flagged</span>{% endif %}
             </td>
             <td><div class="hash-text">{{ p.blockchain_hash[:30] if p.blockchain_hash else 'N/A' }}...</div></td>
             <td>
-              <div class="d-flex gap-1">
+              <div class="d-flex flex-wrap gap-1 align-items-center">
                 <a href="/track?q={{ p.product_code }}" class="btn btn-sm btn-outline-secondary py-0">Audit</a>
                 {% if not p.is_approved %}
                 <form method="POST" action="/regulator/approve/{{ p.id }}" class="d-inline">
@@ -77,6 +82,17 @@
                   <button type="submit" class="btn btn-sm btn-danger py-0">Flag</button>
                 </form>
                 {% endif %}
+                <form method="POST" action="/regulator/set_grade/{{ p.id }}" class="d-inline d-flex gap-1 align-items-center">
+                  <select name="quality_grade" class="form-select form-select-sm" style="width:110px">
+                    <option value="">Grade</option>
+                    <option>A+</option>
+                    <option>A</option>
+                    <option>B+</option>
+                    <option>B</option>
+                    <option>C</option>
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-primary py-0">Set</button>
+                </form>
               </div>
             </td>
           </tr>
