@@ -1,11 +1,18 @@
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify, make_response
 from functools import wraps
-from models import db, User, Product, Transaction, Block, AuditLog
+from models import db, User, Product, Transaction, Block, AuditLog, Notification
 from blockchain import Blockchain
 from datetime import datetime, date
 import json, uuid, qrcode, io, base64
 
 main_bp = Blueprint('main', __name__)
+
+def notify(user_id, title, message, link=None):
+    """Create an in-app notification for a user."""
+    n = Notification(user_id=user_id, title=title, message=message, link=link)
+    db.session.add(n)
+
+
 
 def login_required(f):
     @wraps(f)
@@ -112,10 +119,17 @@ def transfer_product(product_id):
     if product.farmer_id != session['user_id']:
         flash('Unauthorized.', 'danger')
         return redirect(url_for('main.farmer_dashboard'))
+    # FIX 1: Prevent double selling — only allow transfer if still harvested
+    if product.status != 'harvested':
+        flash(f'Product cannot be transferred — current status is "{product.status}". It may have already been sold.', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
     receiver_email = request.form.get('receiver_email')
     receiver = User.query.filter_by(email=receiver_email).first()
     if not receiver:
         flash('Receiver not found.', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
+    if receiver.id == session['user_id']:
+        flash('You cannot transfer a product to yourself.', 'danger')
         return redirect(url_for('main.farmer_dashboard'))
     product.current_owner_id = receiver.id
     product.status = 'transferred'
@@ -130,6 +144,10 @@ def transfer_product(product_id):
         previous_hash=block.previous_hash
     )
     db.session.add(tx)
+    # Notify receiver
+    notify(receiver.id, 'Product Transferred to You',
+           f'{session.get("user_name")} has transferred {product.crop_type} ({product.product_code}) to you.',
+           link=f'/verify?q={product.product_code}')
     db.session.commit()
     flash(f'Product transferred to {receiver.name}!', 'success')
     return redirect(url_for('main.farmer_dashboard'))
@@ -192,7 +210,11 @@ def set_resale_price(product_id):
 @role_required('transporter')
 def transporter_dashboard():
     user = User.query.get(session['user_id'])
-    products = Product.query.filter(Product.status.in_(['purchased', 'transferred', 'in_transit'])).all()
+    # FIX 3: Only show products that have been transferred (seller confirmed transfer)
+    # and products already in transit or pending delivery confirmation
+    products = Product.query.filter(
+        Product.status.in_(['transferred', 'in_transit', 'pending_delivery_confirmation'])
+    ).all()
     return render_template('transporter_dashboard.html', user=user, products=products)
 
 @main_bp.route('/transporter/update_status/<int:product_id>', methods=['POST'])
@@ -201,20 +223,151 @@ def transporter_dashboard():
 def update_transport_status(product_id):
     product = Product.query.get_or_404(product_id)
     new_status = request.form.get('status')
-    product.status = new_status
+    # FIX 4: Transporter can only set in_transit, not delivered directly
+    # Delivered status requires buyer QR scan confirmation
+    if new_status == 'delivered':
+        flash('Delivery must be confirmed by the receiver scanning the QR code.', 'warning')
+        return redirect(url_for('main.transporter_dashboard'))
+
+    actual_status = new_status
+    if new_status == 'pending_delivery_confirmation':
+        actual_status = 'pending_delivery_confirmation'
+
+    product.status = actual_status
     bc = Blockchain()
-    block = bc.add_block({'action': new_status, 'product_id': product.id, 'transporter_id': session['user_id']})
+    block = bc.add_block({'action': actual_status, 'product_id': product.id, 'transporter_id': session['user_id']})
     tx = Transaction(
         tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
-        product_id=product.id, action=new_status,
+        product_id=product.id, action=actual_status,
         sender_id=session['user_id'],
         block_index=block.index, block_hash=block.hash,
         previous_hash=block.previous_hash
     )
     db.session.add(tx)
+
+    if actual_status == 'in_transit' and product.current_owner_id:
+        notify(
+            product.current_owner_id,
+            'Product Picked Up',
+            f'Your {product.crop_type} ({product.product_code}) has been picked up and is now in transit.',
+            link=f'/verify?q={product.product_code}'
+        )
+
+    if actual_status == 'pending_delivery_confirmation':
+        if product.current_owner_id:
+            notify(
+                product.current_owner_id,
+                '📦 Delivery Arrived — Scan to Confirm',
+                f'{product.crop_type} ({product.product_code}) has arrived. Please scan the QR code to confirm receipt.',
+                link=f'/buyer/confirm_delivery/{product.id}'
+            )
+
     db.session.commit()
-    flash(f'Status updated to {new_status}!', 'success')
+    flash(f'Status updated!', 'success')
     return redirect(url_for('main.transporter_dashboard'))
+
+
+@main_bp.route('/transporter/scan_pickup/<string:product_code>', methods=['POST'])
+@login_required
+@role_required('transporter')
+def scan_pickup(product_code):
+    """Transporter scans QR to confirm pickup."""
+    product = Product.query.filter_by(product_code=product_code).first_or_404()
+    # FIX 3: Only allow pickup if seller has transferred the product
+    if product.status != 'transferred':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': f'Product cannot be picked up — status is "{product.status}". The seller must transfer it first.'})
+        flash(f'Product cannot be picked up. Seller must transfer it first.', 'warning')
+        return redirect(url_for('main.transporter_dashboard'))
+
+    product.status = 'in_transit'
+    bc = Blockchain()
+    block = bc.add_block({
+        'action': 'in_transit',
+        'product_id': product.id,
+        'transporter_id': session['user_id'],
+        'method': 'qr_scan'
+    })
+    tx = Transaction(
+        tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
+        product_id=product.id, action='in_transit',
+        sender_id=session['user_id'],
+        block_index=block.index, block_hash=block.hash,
+        previous_hash=block.previous_hash,
+        payload=json.dumps({'method': 'qr_scan', 'transporter': session.get('user_name')})
+    )
+    db.session.add(tx)
+
+    if product.current_owner_id:
+        notify(
+            product.current_owner_id,
+            'Product Picked Up via QR Scan',
+            f'{product.crop_type} ({product.product_code}) was scanned and picked up by transporter.',
+            link=f'/verify?q={product.product_code}'
+        )
+
+    db.session.commit()
+
+    # Return JSON for AJAX calls, redirect for normal form posts
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'message': f'Pickup confirmed! {product_code} is now in transit.'})
+
+    flash(f'Pickup confirmed for {product_code}! Product is now in transit.', 'success')
+    return redirect(url_for('main.transporter_dashboard'))
+
+
+@main_bp.route('/buyer/confirm_delivery/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('buyer')
+def confirm_delivery(product_id):
+    """Buyer scans QR code to confirm delivery. QR must match product."""
+    product = Product.query.get_or_404(product_id)
+    if product.current_owner_id != session['user_id']:
+        flash('This product does not belong to you.', 'danger')
+        return redirect(url_for('main.buyer_dashboard'))
+
+    # FIX 5: Only allow confirmation if in transit or pending confirmation, not already delivered
+    if product.status == 'delivered':
+        flash('This product has already been confirmed as delivered.', 'info')
+        return redirect(url_for('main.buyer_dashboard'))
+
+    if product.status not in ['in_transit', 'pending_delivery_confirmation']:
+        flash('Product is not ready for delivery confirmation yet.', 'warning')
+        return redirect(url_for('main.buyer_dashboard'))
+
+    if request.method == 'POST':
+        # FIX 5: Verify scanned QR code matches this product
+        scanned_code = request.form.get('scanned_code', '').strip()
+        if scanned_code and scanned_code != product.product_code:
+            flash(f'QR code mismatch! Scanned "{scanned_code}" but expected "{product.product_code}". Wrong product.', 'danger')
+            return render_template('confirm_delivery.html', product=product, mismatch=True)
+
+        product.status = 'delivered'
+        bc = Blockchain()
+        block = bc.add_block({
+            'action': 'delivery_confirmed',
+            'product_id': product.id,
+            'receiver_id': session['user_id'],
+            'method': 'qr_scan_confirmation',
+            'scanned_code': scanned_code or product.product_code
+        })
+        tx = Transaction(
+            tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
+            product_id=product.id, action='delivery_confirmed',
+            sender_id=session['user_id'],
+            block_index=block.index, block_hash=block.hash,
+            previous_hash=block.previous_hash,
+            payload=json.dumps({'confirmed_by': session.get('user_name'), 'method': 'qr_confirmation'})
+        )
+        db.session.add(tx)
+        notify(product.farmer_id, '✅ Delivery Confirmed',
+               f'{session.get("user_name")} confirmed receipt of your {product.crop_type} ({product.product_code}).',
+               link=f'/verify?q={product.product_code}')
+        db.session.commit()
+        flash('Delivery confirmed on blockchain!', 'success')
+        return redirect(url_for('main.buyer_dashboard'))
+
+    return render_template('confirm_delivery.html', product=product, mismatch=False)
 
 # ─── Regulator ────────────────────────────────────────────────────────────────
 
@@ -255,9 +408,63 @@ def approve_product(product_id):
 @role_required('regulator')
 def flag_product(product_id):
     product = Product.query.get_or_404(product_id)
+    # FIX 7: Once flagged, cannot be unflagged
+    if product.is_flagged:
+        flash('Product is already flagged and cannot be unflagged.', 'warning')
+        return redirect(url_for('main.regulator_dashboard'))
     product.is_flagged = True
+    # Record on blockchain
+    bc = Blockchain()
+    block = bc.add_block({'action': 'flagged', 'product_id': product.id, 'regulator_id': session['user_id']})
+    tx = Transaction(
+        tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
+        product_id=product.id, action='flagged_by_regulator',
+        sender_id=session['user_id'],
+        block_index=block.index, block_hash=block.hash,
+        previous_hash=block.previous_hash
+    )
+    db.session.add(tx)
+    # Notify farmer
+    notify(product.farmer_id, '⚠️ Product Flagged',
+           f'Your {product.crop_type} ({product.product_code}) has been flagged by a regulator for review.',
+           link=f'/verify?q={product.product_code}')
     db.session.commit()
-    flash('Product flagged for review.', 'warning')
+    flash('Product flagged for review. This action is permanent.', 'warning')
+    return redirect(url_for('main.regulator_dashboard'))
+
+
+@main_bp.route('/regulator/set_grade/<int:product_id>', methods=['POST'])
+@login_required
+@role_required('regulator')
+def set_quality_grade(product_id):
+    """Only regulators can set/change quality grade."""
+    product = Product.query.get_or_404(product_id)
+    grade = request.form.get('quality_grade')
+    if not grade:
+        flash('Please select a quality grade.', 'danger')
+        return redirect(url_for('main.regulator_dashboard'))
+    product.quality_grade = grade
+    bc = Blockchain()
+    block = bc.add_block({
+        'action': 'quality_graded',
+        'product_id': product.id,
+        'grade': grade,
+        'regulator_id': session['user_id']
+    })
+    tx = Transaction(
+        tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
+        product_id=product.id, action='quality_graded',
+        sender_id=session['user_id'],
+        block_index=block.index, block_hash=block.hash,
+        previous_hash=block.previous_hash,
+        payload=json.dumps({'grade': grade, 'graded_by': session.get('user_name')})
+    )
+    db.session.add(tx)
+    notify(product.farmer_id, '🏅 Quality Grade Assigned',
+           f'Your {product.crop_type} ({product.product_code}) has been graded {grade} by a regulator.',
+           link=f'/verify?q={product.product_code}')
+    db.session.commit()
+    flash(f'Quality grade set to {grade} and recorded on blockchain.', 'success')
     return redirect(url_for('main.regulator_dashboard'))
 
 # ─── Admin ────────────────────────────────────────────────────────────────────
@@ -421,6 +628,30 @@ def verify_block(product_code):
         'nonce': block.nonce,
         'stored_hash': block.hash
     })
+
+
+# ─── Notifications ────────────────────────────────────────────────────────────
+
+@main_bp.route('/notifications')
+@login_required
+def notifications():
+    notifs = Notification.query.filter_by(
+        user_id=session['user_id']
+    ).order_by(Notification.created_at.desc()).limit(50).all()
+    # Mark all as read
+    Notification.query.filter_by(
+        user_id=session['user_id'], is_read=False
+    ).update({'is_read': True})
+    db.session.commit()
+    return render_template('notifications.html', notifications=notifs)
+
+@main_bp.route('/api/notifications/count')
+@login_required
+def notification_count():
+    count = Notification.query.filter_by(
+        user_id=session['user_id'], is_read=False
+    ).count()
+    return jsonify({'count': count})
 
 # ─── PWA ──────────────────────────────────────────────────────────────────────
 

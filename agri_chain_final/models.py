@@ -41,7 +41,7 @@ class Product(db.Model):
     location = db.Column(db.String(100))
     district = db.Column(db.String(100), default='Kasese')
     harvest_date = db.Column(db.Date)
-    quality_grade = db.Column(db.String(10), default='A')
+    quality_grade = db.Column(db.String(10), default='Pending')
     status = db.Column(db.String(30), default='harvested')
     farmer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     current_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -138,6 +138,29 @@ class AuditLog(db.Model):
 
     user = db.relationship('User', foreign_keys=[user_id])
 
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    link = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'message': self.message,
+            'is_read': self.is_read,
+            'link': self.link,
+            'created_at': self.created_at.isoformat()
+        }
 
 def seed_data():
     """

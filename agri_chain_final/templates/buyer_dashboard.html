@@ -166,6 +166,13 @@
               Set Price
             </button>
           </form>
+          <!-- Confirm delivery button -->
+          {% if p.status == 'delivered' or p.status == 'in_transit' %}
+          <a href="/buyer/confirm_delivery/{{ p.id }}"
+            class="btn btn-sm btn-success w-100 mt-1">
+            <i class="bi bi-check-circle me-1"></i>Confirm Receipt
+          </a>
+          {% endif %}
         </div>
         {% else %}
         <p class="text-muted text-center small">No purchases yet</p>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Notifications - AgriChain{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h4 class="fw-bold mb-0"><i class="bi bi-bell me-2"></i>Notifications</h4>
+  <small class="text-muted">Your recent alerts and updates</small>
+</div>
+
+{% if notifications %}
+<div class="card">
+  <div class="card-body p-0">
+    {% for n in notifications %}
+    <div class="d-flex align-items-start gap-3 p-3 border-bottom {% if not n.is_read %}bg-light{% endif %}">
+      <div style="width:40px;height:40px;border-radius:50%;background:{% if '🎉' in n.title or '✅' in n.title %}#d1fae5{% elif '📦' in n.title %}#dbeafe{% else %}rgba(244,168,32,0.15){% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="bi bi-bell" style="color:#1a6b3c"></i>
+      </div>
+      <div class="flex-grow-1">
+        <div class="fw-semibold" style="font-size:0.9rem">{{ n.title }}</div>
+        <div class="text-muted" style="font-size:0.82rem">{{ n.message }}</div>
+        <div class="text-muted mt-1" style="font-size:0.72rem">
+          <i class="bi bi-clock me-1"></i>{{ n.created_at.strftime('%d %b %Y · %H:%M') }}
+        </div>
+      </div>
+      {% if n.link %}
+      <a href="{{ n.link }}" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-arrow-right"></i>
+      </a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-bell-slash" style="font-size:3rem;opacity:0.3"></i>
+  <p class="mt-3">No notifications yet.</p>
+</div>
+{% endif %}
+{% endblock %}

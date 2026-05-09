@@ -55,6 +55,8 @@ body { background: var(--surface); margin: 0; }
 .badge-in_transit { background:#e0e7ff; color:#3730a3; }
 .badge-delivered  { background:#d1fae5; color:#065f46; }
 .badge-approved   { background:#bbf7d0; color:#14532d; }
+.badge-pending_delivery_confirmation { background:#cffafe; color:#164e63; }
+.badge-pending    { background:#fef9c3; color:#713f12; }
 
 .hash-text { font-family:monospace; font-size:0.72rem; color:#888; }
 
@@ -104,6 +106,11 @@ body { background: var(--surface); margin: 0; }
         <span class="badge" style="background:rgba(244,168,32,0.2);color:#f4a820;border:1px solid rgba(244,168,32,0.3);font-size:0.7rem">
           {{ session.user_role|title }}
         </span>
+        <!-- Notification Bell -->
+        <a href="/notifications" class="btn btn-sm btn-outline-light ms-1 position-relative" id="notif-btn">
+          <i class="bi bi-bell"></i>
+          <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;display:none">0</span>
+        </a>
         <a href="/auth/logout" class="btn btn-sm btn-outline-light ms-1">Logout</a>
       {% else %}
         <a href="/auth/login" class="btn btn-sm btn-outline-light">Login</a>
@@ -180,5 +187,29 @@ function toggleSidebar() {
 }
 </script>
 {% block extra_js %}{% endblock %}
+
+<script>
+// Poll notification count every 30 seconds
+function updateNotifCount() {
+  fetch('/api/notifications/count')
+    .then(r => r.json())
+    .then(data => {
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        if (data.count > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = data.count;
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    }).catch(() => {});
+}
+// Run on load and every 30s
+if (document.getElementById('notif-btn')) {
+  updateNotifCount();
+  setInterval(updateNotifCount, 30000);
+}
+</script>
 </body>
 </html>

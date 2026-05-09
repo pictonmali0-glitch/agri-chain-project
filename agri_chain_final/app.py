@@ -2,7 +2,7 @@ import os
 from flask import Flask
 
 from config import Config
-from models import db, seed_data
+from models import db, seed_data, Notification
 from auth import auth_bp
 from routes import main_bp
 
@@ -40,6 +40,15 @@ def _migrate():
         "ALTER TABLE users ADD COLUMN webauthn_sign_count INTEGER DEFAULT 0",
         "ALTER TABLE products ADD COLUMN price_per_kg FLOAT",
         "ALTER TABLE products ADD COLUMN resale_price_per_kg FLOAT",
+        """CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            title VARCHAR(100) NOT NULL,
+            message TEXT NOT NULL,
+            is_read BOOLEAN DEFAULT FALSE,
+            link VARCHAR(200),
+            created_at TIMESTAMP DEFAULT NOW()
+        )""",
     ]
     for sql in migrations:
         try:

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Confirm Delivery - AgriChain{% endblock %}
+{% block content %}
+<div class="row justify-content-center" style="margin-top:2rem">
+  <div class="col-md-5">
+    <div class="card p-4">
+      <div class="text-center mb-3">
+        <i class="bi bi-qr-code-scan" style="font-size:2.5rem;color:#1a6b3c"></i>
+        <h4 class="fw-bold mt-2">Confirm Receipt</h4>
+        <p class="text-muted" style="font-size:0.85rem">
+          Scan the QR code on the product packaging to confirm you have received it.
+          The QR code must match the product you selected.
+        </p>
+      </div>
+
+      {% if mismatch %}
+      <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>QR Code Mismatch!</strong> The scanned product does not match.
+        Please scan the correct QR code for <strong>{{ product.product_code }}</strong>.
+      </div>
+      {% endif %}
+
+      <!-- Product summary -->
+      <div class="bg-light rounded p-3 mb-3">
+        {% if product.image_data %}
+        <img src="{{ product.image_data }}" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-bottom:0.75rem">
+        {% endif %}
+        <table class="table table-sm table-borderless mb-0" style="font-size:0.83rem">
+          <tr><td class="text-muted">Product Code</td><td class="fw-bold font-monospace">{{ product.product_code }}</td></tr>
+          <tr><td class="text-muted">Crop</td><td>{{ product.crop_type }} · {{ product.quantity }}kg</td></tr>
+          <tr><td class="text-muted">From</td><td>{{ product.farmer.name if product.farmer else 'N/A' }}</td></tr>
+          <tr><td class="text-muted">Grade</td><td>{{ product.quality_grade }}</td></tr>
+        </table>
+      </div>
+
+      <!-- QR Scanner -->
+      <div id="scanner-container" style="display:none;margin-bottom:1rem">
+        <div style="position:relative;width:100%;max-width:300px;margin:0 auto">
+          <video id="scanner-video" style="width:100%;border-radius:12px;border:2px solid #1a6b3c" autoplay playsinline></video>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+            <div style="width:140px;height:140px;border:3px solid #f4a820;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.4)"></div>
+          </div>
+        </div>
+        <button onclick="stopScanner()" class="btn btn-sm btn-outline-danger mt-2 w-100">
+          <i class="bi bi-x-circle me-1"></i>Close Camera
+        </button>
+      </div>
+
+      <div id="scan-status" style="display:none;font-size:0.85rem;margin-bottom:0.75rem;text-align:center"></div>
+
+      <!-- Scan button -->
+      <button onclick="startScanner()" id="scan-btn" class="btn btn-success w-100 py-2 mb-2 fw-bold">
+        <i class="bi bi-camera me-2"></i>Scan QR Code to Confirm Receipt
+      </button>
+
+      <!-- Manual confirm form (hidden input for scanned code) -->
+      <form method="POST" action="/buyer/confirm_delivery/{{ product.id }}" id="confirm-form">
+        <input type="hidden" name="scanned_code" id="scanned-code-input">
+        <button type="submit" id="manual-btn" class="btn btn-outline-success w-100 mb-2"
+          onclick="document.getElementById('scanned-code-input').value=''">
+          <i class="bi bi-check-circle me-1"></i>Confirm Without Scanning
+        </button>
+      </form>
+
+      <a href="/buyer/dashboard" class="btn btn-outline-secondary w-100">Cancel</a>
+
+      <div class="alert alert-info mt-3 mb-0" style="font-size:0.78rem">
+        <i class="bi bi-shield-lock me-1"></i>
+        Confirming receipt creates an immutable blockchain record and cannot be undone.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
+<script>
+let codeReader = null;
+
+function startScanner() {
+  document.getElementById('scanner-container').style.display = 'block';
+  document.getElementById('scan-btn').style.display = 'none';
+
+  codeReader = new ZXing.BrowserQRCodeReader();
+  codeReader.decodeFromVideoDevice(null, 'scanner-video', (res, err) => {
+    if (res) {
+      let text = res.getText();
+      stopScanner();
+
+      // Extract code from URL if needed
+      let code = text;
+      if (text.includes('verify?q=')) code = text.split('verify?q=')[1].split('&')[0];
+      else if (text.includes('track?q=')) code = text.split('track?q=')[1].split('&')[0];
+
+      const status = document.getElementById('scan-status');
+      status.style.display = 'block';
+
+      const expected = '{{ product.product_code }}';
+      if (code === expected) {
+        status.style.color = '#198754';
+        status.innerHTML = `<i class="bi bi-check-circle me-1"></i>✅ QR Match! Submitting confirmation...`;
+        document.getElementById('scanned-code-input').value = code;
+        setTimeout(() => document.getElementById('confirm-form').submit(), 1000);
+      } else {
+        status.style.color = '#dc3545';
+        status.innerHTML = `<i class="bi bi-x-circle me-1"></i>❌ Wrong product scanned! Expected <strong>${expected}</strong> but got <strong>${code}</strong>.`;
+        document.getElementById('scan-btn').style.display = 'block';
+      }
+    }
+  });
+}
+
+function stopScanner() {
+  if (codeReader) { codeReader.reset(); codeReader = null; }
+  document.getElementById('scanner-container').style.display = 'none';
+  document.getElementById('scan-btn').style.display = 'block';
+}
+</script>
+{% endblock %}

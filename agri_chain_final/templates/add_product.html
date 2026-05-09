@@ -52,14 +52,10 @@ document.querySelector('[name="quantity"]').addEventListener('input', calcTotal)
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Quality Grade</label>
-            <select name="quality_grade" class="form-select">
-              <option value="A+">A+ (Premium)</option>
-              <option value="A" selected>A (Standard)</option>
-              <option value="B+">B+ (Good)</option>
-              <option value="B">B (Fair)</option>
-              <option value="C">C (Low)</option>
-            </select>
+            <div class="alert alert-info mb-0 h-100 d-flex align-items-center" style="font-size:0.82rem">
+              <i class="bi bi-info-circle me-2"></i>
+              <span>Quality grade will be assigned by a <strong>UNBS Regulator</strong> after inspection.</span>
+            </div>
           </div>
 
           <div class="col-12">
