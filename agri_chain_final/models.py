@@ -15,6 +15,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     location = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    profile_picture = db.Column(db.Text, nullable=True)  # base64 image
     # WebAuthn / biometric login
     webauthn_credential_id = db.Column(db.Text, nullable=True)
     webauthn_public_key    = db.Column(db.Text, nullable=True)
@@ -44,8 +45,6 @@ class Product(db.Model):
     quality_grade = db.Column(db.String(10), default='Pending')
     status = db.Column(db.String(30), default='harvested')
     farmer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    # Buyer who tapped "Buy" — farmer may transfer only to this user while status is harvested.
-    purchase_requested_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     current_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     blockchain_hash = db.Column(db.String(64))
     is_flagged = db.Column(db.Boolean, default=False)
@@ -59,10 +58,6 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     current_owner = db.relationship('User', foreign_keys=[current_owner_id])
-    purchase_requester = db.relationship('User', foreign_keys=[purchase_requested_by_id])
-    purchase_requests = db.relationship(
-        'PurchaseRequest', backref='product', lazy='dynamic', cascade='all, delete-orphan'
-    )
     transactions = db.relationship('Transaction', backref='product', lazy=True)
 
     def to_dict(self):
@@ -146,22 +141,17 @@ class AuditLog(db.Model):
 
 
 
-class PurchaseRequest(db.Model):
-    """Multiple buyers can request the same listing; farmer accepts one or rejects requests."""
-    __tablename__ = 'purchase_requests'
-    __table_args__ = (
-        db.UniqueConstraint('product_id', 'buyer_id', name='uq_purchase_request_product_buyer'),
-    )
 
+class PurchaseRequest(db.Model):
+    __tablename__ = 'purchase_requests'
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     buyer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    product = db.relationship('Product', foreign_keys=[product_id])
     buyer = db.relationship('User', foreign_keys=[buyer_id])
-
 
 class Notification(db.Model):
     __tablename__ = 'notifications'

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}My Profile - AgriChain{% endblock %}
+{% block content %}
+<div class="row justify-content-center" style="margin-top:2rem">
+  <div class="col-md-6">
+
+    <div class="text-center mb-4">
+      <h4 class="fw-bold">My Profile</h4>
+      <small class="text-muted">Update your profile picture and personal details</small>
+    </div>
+
+    <div class="card p-4">
+
+      <!-- Profile picture display -->
+      <div class="text-center mb-4">
+        {% if user.profile_picture %}
+        <img src="{{ user.profile_picture }}" id="current-pic"
+          style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:4px solid #1a6b3c;display:block;margin:0 auto">
+        {% else %}
+        <div id="current-pic" style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:flex;align-items:center;justify-content:center;margin:0 auto;border:4px solid #1a6b3c">
+          <i class="bi bi-person-fill" style="font-size:3rem;color:white"></i>
+        </div>
+        {% endif %}
+        <div class="mt-2">
+          <span class="fw-bold">{{ user.name }}</span><br>
+          <span class="badge" style="background:rgba(26,107,60,0.15);color:#1a6b3c;border:1px solid rgba(26,107,60,0.3)">
+            {{ user.role|title }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Upload form -->
+      <form method="POST" action="/profile" enctype="multipart/form-data">
+
+        <!-- Profile picture upload -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">
+            <i class="bi bi-camera me-1"></i>Profile Picture
+          </label>
+
+          <!-- Upload area -->
+          <div id="upload-area" onclick="document.getElementById('profile_picture').click()"
+            style="border:2px dashed #adb5bd;border-radius:12px;padding:1.25rem;text-align:center;cursor:pointer;background:#f8f9fa;transition:border-color 0.2s">
+            <i class="bi bi-camera fs-3 text-muted"></i>
+            <p class="mb-0 mt-1 text-muted" style="font-size:0.85rem">
+              Tap to take photo or choose from gallery
+            </p>
+            <small class="text-muted">JPG, PNG — max 5MB</small>
+          </div>
+
+          <!-- Hidden file input — opens camera on mobile -->
+          <input type="file" id="profile_picture" name="profile_picture"
+            accept="image/*" capture="user"
+            class="d-none" onchange="previewPic(event)">
+
+          <!-- Preview -->
+          <div id="preview-wrap" class="mt-2 d-none text-center">
+            <img id="pic-preview" src="#"
+              style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:3px solid #1a6b3c">
+            <div class="mt-1">
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearPic()">
+                <i class="bi bi-x-circle me-1"></i>Remove
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Personal details -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Full Name</label>
+          <input type="text" name="name" class="form-control" value="{{ user.name }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Phone</label>
+          <input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}" placeholder="+256700000000">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Location</label>
+          <input type="text" name="location" class="form-control" value="{{ user.location or '' }}" placeholder="Kasese, Uganda">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Email</label>
+          <input type="text" class="form-control" value="{{ user.email }}" disabled style="background:#f8f9fa">
+          <small class="text-muted">Email cannot be changed</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2">
+          <i class="bi bi-check-circle me-1"></i>Save Changes
+        </button>
+      </form>
+
+      {% if user.profile_picture %}
+      <form method="POST" action="/profile/remove_picture" class="mt-2">
+        <button type="submit" class="btn btn-outline-danger w-100"
+          onclick="return confirm('Remove your profile picture?')">
+          <i class="bi bi-trash me-1"></i>Remove Profile Picture
+        </button>
+      </form>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<script>
+function previewPic(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image too large. Please choose one under 5MB.');
+    clearPic();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('pic-preview').src = e.target.result;
+    document.getElementById('preview-wrap').classList.remove('d-none');
+    document.getElementById('upload-area').style.borderColor = '#1a6b3c';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPic() {
+  document.getElementById('profile_picture').value = '';
+  document.getElementById('pic-preview').src = '#';
+  document.getElementById('preview-wrap').classList.add('d-none');
+  document.getElementById('upload-area').style.borderColor = '#adb5bd';
+}
+</script>
+{% endblock %}
