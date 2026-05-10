@@ -100,15 +100,12 @@ body { background: var(--surface); margin: 0; }
     </a>
     <div class="ms-auto d-flex align-items-center gap-2">
       {% if session.user_id %}
-        <!-- Profile picture in navbar -->
-        <a href="/profile" class="me-1" style="text-decoration:none">
-          {% if session.get('user_pic') %}
-          <img src="{{ session.user_pic }}" style="width:32px;height:32px;object-fit:cover;border-radius:50%;border:2px solid #f4a820">
-          {% else %}
-          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:inline-flex;align-items:center;justify-content:center;border:2px solid #f4a820">
-            <i class="bi bi-person-fill text-white" style="font-size:0.9rem"></i>
+        <!-- Profile picture in navbar - loaded via API -->
+        <a href="/profile" class="me-1" style="text-decoration:none" id="nav-profile-link">
+          <div id="nav-avatar" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:inline-flex;align-items:center;justify-content:center;border:2px solid #f4a820;overflow:hidden">
+            <i class="bi bi-person-fill text-white" style="font-size:0.9rem" id="nav-avatar-icon"></i>
+            <img id="nav-avatar-img" src="" style="width:32px;height:32px;object-fit:cover;display:none">
           </div>
-          {% endif %}
         </a>
         <span class="text-white me-1" style="font-size:0.85rem">{{ session.user_name }}</span>
         <span class="badge" style="background:rgba(244,168,32,0.2);color:#f4a820;border:1px solid rgba(244,168,32,0.3);font-size:0.7rem">
@@ -140,22 +137,20 @@ body { background: var(--surface); margin: 0; }
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
     <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
-    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
-    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
-    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
-    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
     <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
 
   {% elif session.user_role == 'buyer' %}
     <a href="/buyer/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
     <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
 
   {% elif session.user_role == 'transporter' %}
     <a href="/transporter/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
     <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
 
   {% elif session.user_role == 'regulator' %}
@@ -163,12 +158,14 @@ body { background: var(--surface); margin: 0; }
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
 
   {% elif session.user_role == 'admin' %}
     <a href="/admin/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
+    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
   {% endif %}
 
   <div class="sidebar-section mt-3">Account</div>
@@ -202,6 +199,27 @@ function toggleSidebar() {
 {% block extra_js %}{% endblock %}
 
 <script>
+// Load profile picture from API (not session - avoids cookie size limit)
+function loadProfilePic() {
+  fetch('/api/profile_picture')
+    .then(r => r.json())
+    .then(data => {
+      if (data.picture) {
+        const img = document.getElementById('nav-avatar-img');
+        const icon = document.getElementById('nav-avatar-icon');
+        if (img && icon) {
+          img.src = data.picture;
+          img.style.display = 'block';
+          icon.style.display = 'none';
+        }
+      }
+    }).catch(() => {});
+}
+
+if (document.getElementById('nav-avatar')) {
+  loadProfilePic();
+}
+
 // Poll notification count every 30 seconds
 function updateNotifCount() {
   fetch('/api/notifications/count')

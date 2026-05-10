@@ -718,7 +718,6 @@ def profile():
                 encoded = base64.b64encode(raw).decode('utf-8')
                 user.profile_picture = f'data:{mime};base64,{encoded}'
                 db.session.commit()
-                session['user_pic'] = user.profile_picture
                 flash('Profile picture updated!', 'success')
             else:
                 flash('Image too large. Max 5MB.', 'danger')
@@ -746,6 +745,13 @@ def remove_profile_picture():
     db.session.commit()
     flash('Profile picture removed.', 'info')
     return redirect(url_for('main.profile'))
+
+
+@main_bp.route('/api/profile_picture')
+@login_required
+def api_profile_picture():
+    user = User.query.get(session['user_id'])
+    return jsonify({'picture': user.profile_picture if user and user.profile_picture else None})
 
 # ─── Notifications ────────────────────────────────────────────────────────────
 

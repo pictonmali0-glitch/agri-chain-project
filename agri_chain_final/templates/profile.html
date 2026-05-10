@@ -13,14 +13,12 @@
 
       <!-- Profile picture display -->
       <div class="text-center mb-4">
-        {% if user.profile_picture %}
-        <img src="{{ user.profile_picture }}" id="current-pic"
-          style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:4px solid #1a6b3c;display:block;margin:0 auto">
-        {% else %}
-        <div id="current-pic" style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:flex;align-items:center;justify-content:center;margin:0 auto;border:4px solid #1a6b3c">
+        <img id="current-pic"
+          src="{{ user.profile_picture if user.profile_picture else '' }}"
+          style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:4px solid #1a6b3c;display:{{ 'block' if user.profile_picture else 'none' }};margin:0 auto">
+        <div id="default-avatar" style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:{{ 'none' if user.profile_picture else 'flex' }};align-items:center;justify-content:center;margin:0 auto;border:4px solid #1a6b3c">
           <i class="bi bi-person-fill" style="font-size:3rem;color:white"></i>
         </div>
-        {% endif %}
         <div class="mt-2">
           <span class="fw-bold">{{ user.name }}</span><br>
           <span class="badge" style="background:rgba(26,107,60,0.15);color:#1a6b3c;border:1px solid rgba(26,107,60,0.3)">
@@ -29,32 +27,16 @@
         </div>
       </div>
 
-      <!-- Upload form -->
-      <form method="POST" action="/profile" enctype="multipart/form-data">
+      <!-- Profile picture upload form -->
+      <form method="POST" action="/profile" enctype="multipart/form-data" id="profile-form">
 
-        <!-- Profile picture upload -->
         <div class="mb-4">
           <label class="form-label fw-semibold">
             <i class="bi bi-camera me-1"></i>Profile Picture
           </label>
 
-          <!-- Upload area -->
-          <div id="upload-area" onclick="document.getElementById('profile_picture').click()"
-            style="border:2px dashed #adb5bd;border-radius:12px;padding:1.25rem;text-align:center;cursor:pointer;background:#f8f9fa;transition:border-color 0.2s">
-            <i class="bi bi-camera fs-3 text-muted"></i>
-            <p class="mb-0 mt-1 text-muted" style="font-size:0.85rem">
-              Tap to take photo or choose from gallery
-            </p>
-            <small class="text-muted">JPG, PNG — max 5MB</small>
-          </div>
-
-          <!-- Hidden file input — opens camera on mobile -->
-          <input type="file" id="profile_picture" name="profile_picture"
-            accept="image/*" capture="user"
-            class="d-none" onchange="previewPic(event)">
-
-          <!-- Preview -->
-          <div id="preview-wrap" class="mt-2 d-none text-center">
+          <!-- Preview (hidden until photo selected) -->
+          <div id="preview-wrap" class="text-center mb-3 d-none">
             <img id="pic-preview" src="#"
               style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:3px solid #1a6b3c">
             <div class="mt-1">
@@ -63,6 +45,30 @@
               </button>
             </div>
           </div>
+
+          <!-- Two separate buttons -->
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-outline-success"
+              onclick="document.getElementById('camera-input').click()">
+              <i class="bi bi-camera me-2"></i>Take Photo with Camera
+            </button>
+            <button type="button" class="btn btn-outline-primary"
+              onclick="document.getElementById('gallery-input').click()">
+              <i class="bi bi-images me-2"></i>Choose from Gallery
+            </button>
+          </div>
+
+          <!-- Camera input — opens camera directly -->
+          <input type="file" id="camera-input" name="profile_picture"
+            accept="image/*" capture="environment"
+            class="d-none" onchange="previewPic(this)">
+
+          <!-- Gallery input — opens gallery -->
+          <input type="file" id="gallery-input"
+            accept="image/*"
+            class="d-none" onchange="previewPic(this)">
+
+          <small class="text-muted d-block mt-2">JPG or PNG, max 5MB</small>
         </div>
 
         <hr>
@@ -74,15 +80,18 @@
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Phone</label>
-          <input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}" placeholder="+256700000000">
+          <input type="text" name="phone" class="form-control"
+            value="{{ user.phone or '' }}" placeholder="+256700000000">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Location</label>
-          <input type="text" name="location" class="form-control" value="{{ user.location or '' }}" placeholder="Kasese, Uganda">
+          <input type="text" name="location" class="form-control"
+            value="{{ user.location or '' }}" placeholder="Kasese, Uganda">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Email</label>
-          <input type="text" class="form-control" value="{{ user.email }}" disabled style="background:#f8f9fa">
+          <input type="text" class="form-control" value="{{ user.email }}"
+            disabled style="background:#f8f9fa">
           <small class="text-muted">Email cannot be changed</small>
         </div>
 
@@ -105,28 +114,58 @@
 </div>
 
 <script>
-function previewPic(event) {
-  const file = event.target.files[0];
+// When gallery input changes, copy file to the form's profile_picture input
+document.getElementById('gallery-input').addEventListener('change', function() {
+  const file = this.files[0];
   if (!file) return;
+
+  // Create a new DataTransfer to set file on the camera-input (which is the named form field)
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  document.getElementById('camera-input').files = dt.files;
+});
+
+function previewPic(input) {
+  const file = input.files[0];
+  if (!file) return;
+
   if (file.size > 5 * 1024 * 1024) {
-    alert('Image too large. Please choose one under 5MB.');
-    clearPic();
+    alert('Image is too large. Please choose one under 5MB.');
+    input.value = '';
     return;
   }
+
+  // If gallery was used, copy to camera-input (the named form field)
+  if (input.id === 'gallery-input') {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('camera-input').files = dt.files;
+  }
+
   const reader = new FileReader();
   reader.onload = e => {
     document.getElementById('pic-preview').src = e.target.result;
     document.getElementById('preview-wrap').classList.remove('d-none');
-    document.getElementById('upload-area').style.borderColor = '#1a6b3c';
+    // Hide current pic while previewing new one
+    document.getElementById('current-pic').style.display = 'none';
+    document.getElementById('default-avatar').style.display = 'none';
   };
   reader.readAsDataURL(file);
 }
 
 function clearPic() {
-  document.getElementById('profile_picture').value = '';
+  document.getElementById('camera-input').value = '';
+  document.getElementById('gallery-input').value = '';
   document.getElementById('pic-preview').src = '#';
   document.getElementById('preview-wrap').classList.add('d-none');
-  document.getElementById('upload-area').style.borderColor = '#adb5bd';
+  // Show current pic again
+  const pic = document.getElementById('current-pic');
+  const avatar = document.getElementById('default-avatar');
+  if (pic.src && pic.src !== window.location.href) {
+    pic.style.display = 'block';
+  } else {
+    avatar.style.display = 'flex';
+  }
 }
 </script>
 {% endblock %}
