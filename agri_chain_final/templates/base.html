@@ -129,30 +129,35 @@ body { background: var(--surface); margin: 0; }
   {% if session.user_role == 'farmer' %}
     <a href="/farmer/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
     <a href="/farmer/add_product" class="nav-link"><i class="bi bi-plus-circle"></i>Add Product</a>
+    <a href="/coordination" class="nav-link"><i class="bi bi-camera-video"></i>Voice / Video call</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
     <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
 
   {% elif session.user_role == 'buyer' %}
     <a href="/buyer/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/coordination" class="nav-link"><i class="bi bi-camera-video"></i>Voice / Video call</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
     <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
 
   {% elif session.user_role == 'transporter' %}
     <a href="/transporter/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/coordination" class="nav-link"><i class="bi bi-camera-video"></i>Voice / Video call</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
     <a href="/auth/webauthn/register/page" class="nav-link"><i class="bi bi-fingerprint"></i>Fingerprint Login</a>
 
   {% elif session.user_role == 'regulator' %}
     <a href="/regulator/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/coordination" class="nav-link"><i class="bi bi-camera-video"></i>Voice / Video call</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
 
   {% elif session.user_role == 'admin' %}
     <a href="/admin/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
+    <a href="/coordination" class="nav-link"><i class="bi bi-camera-video"></i>Voice / Video call</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
@@ -180,7 +185,7 @@ body { background: var(--surface); margin: 0; }
   {% block content %}{% endblock %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("active");
@@ -209,6 +214,53 @@ function updateNotifCount() {
 if (document.getElementById('notif-btn')) {
   updateNotifCount();
   setInterval(updateNotifCount, 30000);
+}
+
+// SocketIO for real-time calls
+const socket = io();
+socket.emit('join', {room: 'user_{{ session.user_id }}'});
+socket.on('incoming_call', function(data) {
+  // Show ringing modal
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+    <div class="modal fade" id="callModal" tabindex="-1" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Incoming ${data.call_type} Call</h5>
+          </div>
+          <div class="modal-body text-center">
+            <i class="bi bi-telephone-fill fs-1 text-success mb-3"></i>
+            <p><strong>${data.from_name}</strong> is calling you</p>
+            <p class="text-muted">Product: ${data.product_code}</p>
+            <audio id="ringtone" loop autoplay>
+              <source src="/static/ringtone.mp3" type="audio/mpeg">
+            </audio>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" onclick="declineCall()">Decline</button>
+            <button type="button" class="btn btn-success" onclick="answerCall('${data.room}', '${data.call_type}', '${data.product_id}')">Answer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  const bsModal = new bootstrap.Modal(document.getElementById('callModal'));
+  bsModal.show();
+});
+
+function answerCall(room, callType, productId) {
+  document.getElementById('ringtone').pause();
+  window.open(`/call/${callType}/${productId}?room=${room}`, '_blank');
+  const bsModal = bootstrap.Modal.getInstance(document.getElementById('callModal'));
+  bsModal.hide();
+}
+
+function declineCall() {
+  document.getElementById('ringtone').pause();
+  const bsModal = bootstrap.Modal.getInstance(document.getElementById('callModal'));
+  bsModal.hide();
 }
 </script>
 </body>

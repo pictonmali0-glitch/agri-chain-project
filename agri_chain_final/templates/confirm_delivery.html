@@ -50,16 +50,10 @@
       <div id="scan-status" style="display:none;font-size:0.85rem;margin-bottom:0.75rem;text-align:center"></div>
 
       <!-- Scan button -->
-      <button onclick="startScanner()" id="scan-btn" class="btn btn-success w-100 py-2 mb-2 fw-bold">
-        <i class="bi bi-camera me-2"></i>Scan QR Code to Confirm Receipt
-      </button>
-
-      <!-- Manual confirm form (hidden input for scanned code) -->
       <form method="POST" action="/buyer/confirm_delivery/{{ product.id }}" id="confirm-form">
-        <input type="hidden" name="scanned_code" id="scanned-code-input">
-        <button type="submit" id="manual-btn" class="btn btn-outline-success w-100 mb-2"
-          onclick="document.getElementById('scanned-code-input').value=''">
-          <i class="bi bi-check-circle me-1"></i>Confirm Without Scanning
+        <input type="hidden" name="scanned_code" id="scanned-code-input" value="">
+        <button type="button" onclick="startScanner()" id="scan-btn" class="btn btn-success w-100 py-2 mb-2 fw-bold">
+          <i class="bi bi-camera me-2"></i>Scan QR Code to Confirm Receipt
         </button>
       </form>
 
@@ -79,7 +73,8 @@ let codeReader = null;
 
 function startScanner() {
   document.getElementById('scanner-container').style.display = 'block';
-  document.getElementById('scan-btn').style.display = 'none';
+  const scanBtn = document.getElementById('scan-btn');
+  if (scanBtn) scanBtn.style.display = 'none';
 
   codeReader = new ZXing.BrowserQRCodeReader();
   codeReader.decodeFromVideoDevice(null, 'scanner-video', (res, err) => {
@@ -104,7 +99,7 @@ function startScanner() {
       } else {
         status.style.color = '#dc3545';
         status.innerHTML = `<i class="bi bi-x-circle me-1"></i>❌ Wrong product scanned! Expected <strong>${expected}</strong> but got <strong>${code}</strong>.`;
-        document.getElementById('scan-btn').style.display = 'block';
+        if (scanBtn) scanBtn.style.display = 'block';
       }
     }
   });
@@ -113,7 +108,8 @@ function startScanner() {
 function stopScanner() {
   if (codeReader) { codeReader.reset(); codeReader = null; }
   document.getElementById('scanner-container').style.display = 'none';
-  document.getElementById('scan-btn').style.display = 'block';
+  const scanBtn = document.getElementById('scan-btn');
+  if (scanBtn) scanBtn.style.display = 'block';
 }
 </script>
 {% endblock %}

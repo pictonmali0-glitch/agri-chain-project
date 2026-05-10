@@ -726,20 +726,13 @@ async function verifyIntegrity(productCode) {
     const res = await fetch(`/api/verify_block/${productCode}`);
     if (!res.ok) throw new Error('Block not found');
     const block = await res.json();
+    if (!block.canonical_json) {
+      throw new Error('Server did not send canonical block payload');
+    }
 
-    // 2. Recompute SHA-256 exactly as Python does
-    // Python: json.dumps({index, timestamp, data, previous_hash, nonce}, sort_keys=True)
-    const blockObj = {
-      data: block.data,
-      index: block.index,
-      nonce: block.nonce,
-      previous_hash: block.previous_hash,
-      timestamp: block.timestamp
-    };
-    // sort_keys=True means alphabetical key order
-    const blockString = JSON.stringify(blockObj, Object.keys(blockObj).sort());
+    // 2. SHA-256 the exact same UTF-8 string Python hashed (avoids JS vs Python JSON differences)
     const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(blockString));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(block.canonical_json));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 

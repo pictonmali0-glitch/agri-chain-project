@@ -1,18 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Add Product - AgriChain
-<script>
-function calcTotal() {
-  const price = parseFloat(document.getElementById('price-per-kg').value) || 0;
-  const qty = parseFloat(document.querySelector('[name="quantity"]').value) || 0;
-  const total = price * qty;
-  document.getElementById('total-value').value = total > 0
-    ? 'UGX ' + total.toLocaleString()
-    : '';
-}
-// Recalculate when quantity changes too
-document.querySelector('[name="quantity"]').addEventListener('input', calcTotal);
-</script>
-{% endblock %}
+{% block title %}Add Product - AgriChain{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-7">

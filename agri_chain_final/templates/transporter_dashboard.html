@@ -34,8 +34,8 @@
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card amber">
-      <div class="stat-num">{{ products|selectattr('status','eq','purchased')|list|length }}</div>
-      <div class="stat-label"><i class="bi bi-clock me-1"></i>Pending Pickup</div>
+      <div class="stat-num">{{ products|selectattr('status','eq','transferred')|list|length }}</div>
+      <div class="stat-label"><i class="bi bi-clock me-1"></i>Awaiting QR pickup</div>
     </div>
   </div>
 </div>
@@ -44,7 +44,7 @@
 <div class="card mb-4" style="border:2px dashed rgba(244,168,32,0.4);background:rgba(244,168,32,0.05)">
   <div class="card-body p-3">
     <h6 class="fw-bold mb-1"><i class="bi bi-qr-code-scan me-2" style="color:#f4a820"></i>Scan QR to Confirm Pickup</h6>
-    <small class="text-muted d-block mb-2">Scan the product QR code with your camera or enter the code manually</small>
+    <small class="text-muted d-block mb-2">Use the camera only — manual codes are disabled so pickup always matches the physical QR.</small>
 
     <!-- Camera scanner -->
     <div id="scanner-container" style="display:none;margin-bottom:1rem">
@@ -65,15 +65,6 @@
     <div class="d-flex gap-2 flex-wrap mb-2">
       <button onclick="startScanner()" class="btn btn-warning fw-bold" id="scan-btn">
         <i class="bi bi-camera me-1"></i>Open Camera & Scan
-      </button>
-    </div>
-
-    <!-- Manual fallback -->
-    <div class="d-flex gap-2 flex-wrap">
-      <input type="text" id="qr-input" class="form-control" style="max-width:260px"
-        placeholder="Or type product code manually...">
-      <button onclick="confirmPickupManual()" class="btn btn-outline-warning fw-bold">
-        <i class="bi bi-truck me-1"></i>Confirm
       </button>
     </div>
     <div id="scan-result" class="mt-2" style="font-size:0.85rem;display:none"></div>
@@ -227,21 +218,6 @@ function stopScanner() {
   document.getElementById('scan-btn').style.display = 'inline-block';
 }
 
-function confirmPickupManual() {
-  const code = document.getElementById('qr-input').value.trim();
-  const result = document.getElementById('scan-result');
-  if (!code) {
-    result.style.display = 'block';
-    result.style.color = '#dc3545';
-    result.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Please enter a product code.';
-    return;
-  }
-  result.style.display = 'block';
-  result.style.color = '#0d6efd';
-  result.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
-  submitPickup(code);
-}
-
 function submitPickup(code) {
   fetch(`/transporter/scan_pickup/${code}`, {
     method: 'POST',
@@ -266,9 +242,5 @@ function submitPickup(code) {
   })
   .catch(() => window.location.reload());
 }
-
-document.getElementById('qr-input').addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') confirmPickupManual();
-});
 </script>
 {% endblock %}

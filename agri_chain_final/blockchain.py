@@ -4,6 +4,23 @@ import time
 from datetime import datetime
 
 
+def canonical_json_for_stored_block(block):
+    """
+    Build the exact UTF-8 JSON string used to verify a persisted Block row's hash
+    (same rules as BlockData.calculate_hash / chain validation).
+    """
+    ts = block.timestamp
+    if hasattr(ts, 'tzinfo') and ts.tzinfo is not None:
+        ts = ts.replace(tzinfo=None)
+    return json.dumps({
+        'index': block.index,
+        'timestamp': ts.isoformat(),
+        'data': json.loads(block.data),
+        'previous_hash': block.previous_hash,
+        'nonce': block.nonce
+    }, sort_keys=True)
+
+
 class BlockData:
     def __init__(self, index, timestamp, data, previous_hash, nonce=0):
         self.index = index
@@ -49,9 +66,22 @@ class Blockchain:
         return self.Block.query.order_by(self.Block.index.desc()).first()
 
     def _save_block(self, block_data):
+        # Must persist the same logical time that was used in calculate_hash(), not a new utcnow()
+        ts = block_data.timestamp
+        if isinstance(ts, str):
+            ts_clean = ts.replace('Z', '').split('+')[0]
+            try:
+                ts_val = datetime.fromisoformat(ts_clean)
+            except ValueError:
+                ts_val = datetime.utcnow()
+        elif isinstance(ts, datetime):
+            ts_val = ts.replace(tzinfo=None) if ts.tzinfo else ts
+        else:
+            ts_val = datetime.utcnow()
+
         b = self.Block(
             index=block_data.index,
-            timestamp=datetime.utcnow(),
+            timestamp=ts_val,
             data=json.dumps(block_data.data),
             previous_hash=block_data.previous_hash,
             hash=block_data.hash,
@@ -74,13 +104,9 @@ class Blockchain:
         for i in range(1, len(blocks)):
             curr = blocks[i]
             prev = blocks[i - 1]
-            recalc = hashlib.sha256(json.dumps({
-                'index': curr.index,
-                'timestamp': curr.timestamp.isoformat(),
-                'data': json.loads(curr.data),
-                'previous_hash': curr.previous_hash,
-                'nonce': curr.nonce
-            }, sort_keys=True).encode()).hexdigest()
+            recalc = hashlib.sha256(
+                canonical_json_for_stored_block(curr).encode()
+            ).hexdigest()
             if curr.hash != recalc:
                 return False
             if curr.previous_hash != prev.hash:

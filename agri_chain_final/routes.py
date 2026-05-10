@@ -1,10 +1,11 @@
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify, make_response
 from functools import wraps
 from sqlalchemy import or_
-from models import db, User, Product, Transaction, Block, AuditLog, Notification
-from blockchain import Blockchain
+from models import db, User, Product, Transaction, Block, AuditLog, Notification, PurchaseRequest
+from blockchain import Blockchain, canonical_json_for_stored_block
 from datetime import datetime, date
-import json, uuid, qrcode, io, base64
+from collections import Counter
+import json, uuid, qrcode, io, base64, re, secrets
 
 main_bp = Blueprint('main', __name__)
 
@@ -38,6 +39,75 @@ def role_required(*roles):
 def index():
     return render_template('landing.html')
 
+
+def _sanitize_coordination_room(code):
+    """Allow only safe room id characters for Jitsi room names."""
+    if not code:
+        return ''
+    return re.sub(r'[^a-zA-Z0-9]', '', str(code))[:48]
+
+
+def _jitsi_urls(room):
+    """Same Jitsi room; voice-first opens with camera off, video opens ready for both."""
+    base = f'https://meet.jit.si/AgriChainUG-{room}'
+    voice = f'{base}#config.startWithVideoMuted=true&config.prejoinPageEnabled=true'
+    video = f'{base}#config.startWithVideoMuted=false&config.prejoinPageEnabled=true'
+    return voice, video
+
+
+@main_bp.route('/coordination', methods=['GET', 'POST'])
+@login_required
+def coordination():
+    """
+    Voice / video coordination between two parties using Jitsi Meet (browser).
+    One user creates a room and shares the code or link; both join the same room.
+    """
+    if request.method == 'POST':
+        action = request.form.get('action', 'create')
+        if action == 'join':
+            room = _sanitize_coordination_room(request.form.get('room_code', ''))
+            if len(room) < 6:
+                flash('Enter the room code your partner shared (at least 6 characters).', 'warning')
+                return redirect(url_for('main.coordination'))
+            return redirect(url_for('main.coordination', room=room))
+
+        # create room
+        room = secrets.token_hex(8)
+        partner_email = request.form.get('partner_email', '').strip().lower()
+        if partner_email:
+            partner = User.query.filter_by(email=partner_email).first()
+            if partner and partner.id != session['user_id']:
+                notify(
+                    partner.id,
+                    'Coordination call — join room',
+                    f'{session.get("user_name")} started a voice/video room. Open the link, then join the same room code: {room}',
+                    link=url_for('main.coordination', room=room),
+                )
+                db.session.commit()
+                flash('Room created. Your partner was notified in the app (bell icon).', 'success')
+                return redirect(url_for('main.coordination', room=room))
+            if not partner:
+                flash('Room created. That email is not registered — copy the link and send it yourself.', 'info')
+                return redirect(url_for('main.coordination', room=room))
+            flash('Room created. Use your partner’s email to notify them — share the room code yourself.', 'info')
+            return redirect(url_for('main.coordination', room=room))
+
+        flash('Room ready — send your partner the room code or copy the link (WhatsApp, SMS, etc.).', 'success')
+        return redirect(url_for('main.coordination', room=room))
+
+    room = _sanitize_coordination_room(request.args.get('room', ''))
+    voice_url, video_url = (None, None)
+    if room and len(room) >= 6:
+        voice_url, video_url = _jitsi_urls(room)
+
+    return render_template(
+        'coordination.html',
+        room=room,
+        voice_url=voice_url,
+        video_url=video_url,
+    )
+
+
 # ─── Farmer ───────────────────────────────────────────────────────────────────
 
 @main_bp.route('/farmer/dashboard')
@@ -47,7 +117,21 @@ def farmer_dashboard():
     user = User.query.get(session['user_id'])
     products = Product.query.filter_by(farmer_id=user.id).all()
     txs = Transaction.query.join(Product).filter(Product.farmer_id == user.id).order_by(Transaction.timestamp.desc()).limit(10).all()
-    return render_template('farmer_dashboard.html', user=user, products=products, transactions=txs)
+    pending_buy_requests = (
+        PurchaseRequest.query.join(Product, PurchaseRequest.product_id == Product.id)
+        .filter(Product.farmer_id == user.id, PurchaseRequest.status == 'pending')
+        .order_by(PurchaseRequest.created_at.asc())
+        .all()
+    )
+    pending_count_by_product = Counter(r.product_id for r in pending_buy_requests)
+    return render_template(
+        'farmer_dashboard.html',
+        user=user,
+        products=products,
+        transactions=txs,
+        pending_buy_requests=pending_buy_requests,
+        pending_count_by_product=pending_count_by_product,
+    )
 
 @main_bp.route('/farmer/add_product', methods=['GET', 'POST'])
 @login_required
@@ -118,58 +202,100 @@ def add_product():
 
     return render_template('add_product.html')
 
-@main_bp.route('/farmer/transfer/<int:product_id>', methods=['POST'])
+@main_bp.route('/farmer/accept_buy_request/<int:request_id>', methods=['POST'])
 @login_required
 @role_required('farmer')
-def transfer_product(product_id):
-    product = Product.query.get_or_404(product_id)
+def accept_buy_request(request_id):
+    """Sell to one buyer; other pending requests for this product are declined."""
+    req = PurchaseRequest.query.get_or_404(request_id)
+    product = req.product
     if product.farmer_id != session['user_id']:
         flash('Unauthorized.', 'danger')
         return redirect(url_for('main.farmer_dashboard'))
-    if product.status != 'harvested':
-        flash(f'Product cannot be transferred — current status is "{product.status}". It may have already been sold.', 'danger')
+    if req.status != 'pending':
+        flash('This request is no longer pending.', 'warning')
         return redirect(url_for('main.farmer_dashboard'))
-    if product.current_owner_id != product.farmer_id:
-        flash('Ownership mismatch — product is no longer with you.', 'danger')
-        return redirect(url_for('main.farmer_dashboard'))
-    if not product.purchase_requested_by_id:
-        flash('No buyer has requested this product yet. The buyer must tap Buy before you can transfer.', 'warning')
-        return redirect(url_for('main.farmer_dashboard'))
-    receiver_email = request.form.get('receiver_email', '').strip().lower()
-    receiver = User.query.filter_by(email=receiver_email).first()
-    if not receiver:
-        flash('Receiver not found.', 'danger')
-        return redirect(url_for('main.farmer_dashboard'))
-    if receiver.id == session['user_id']:
-        flash('You cannot transfer a product to yourself.', 'danger')
-        return redirect(url_for('main.farmer_dashboard'))
-    if receiver.id != product.purchase_requested_by_id:
-        flash('You must transfer to the buyer who requested the purchase (the email must match their account).', 'danger')
-        return redirect(url_for('main.farmer_dashboard'))
-    if receiver.role != 'buyer':
-        flash('Transfers after purchase request are only to buyer accounts.', 'danger')
+    if product.status != 'harvested' or product.current_owner_id != product.farmer_id:
+        flash('This product is no longer available to sell from your inventory.', 'warning')
         return redirect(url_for('main.farmer_dashboard'))
 
+    receiver = req.buyer
+    if not receiver or receiver.role != 'buyer':
+        flash('Invalid buyer account.', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
+
+    others = PurchaseRequest.query.filter(
+        PurchaseRequest.product_id == product.id,
+        PurchaseRequest.id != req.id,
+        PurchaseRequest.status == 'pending',
+    ).all()
+    for o in others:
+        o.status = 'rejected'
+        notify(
+            o.buyer_id,
+            'Purchase request not selected',
+            f'{session.get("user_name")} sold {product.crop_type} ({product.product_code}) to another buyer.',
+            link='/buyer/dashboard',
+        )
+
+    req.status = 'accepted'
     product.purchase_requested_by_id = None
     product.current_owner_id = receiver.id
     product.status = 'transferred'
+
     bc = Blockchain()
-    block = bc.add_block({'action': 'transferred', 'product_id': product.id,
-                           'from': session['user_id'], 'to': receiver.id})
+    block = bc.add_block({
+        'action': 'transferred',
+        'product_id': product.id,
+        'from': session['user_id'],
+        'to': receiver.id,
+        'via': 'farmer_accepted_buy_request',
+        'purchase_request_id': req.id,
+    })
     tx = Transaction(
         tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
-        product_id=product.id, action='transferred',
-        sender_id=session['user_id'], receiver_id=receiver.id,
-        block_index=block.index, block_hash=block.hash,
-        previous_hash=block.previous_hash
+        product_id=product.id,
+        action='transferred',
+        sender_id=session['user_id'],
+        receiver_id=receiver.id,
+        block_index=block.index,
+        block_hash=block.hash,
+        previous_hash=block.previous_hash,
     )
     db.session.add(tx)
-    # Notify receiver
-    notify(receiver.id, 'Product Transferred to You',
-           f'{session.get("user_name")} has transferred {product.crop_type} ({product.product_code}) to you.',
-           link=f'/verify?q={product.product_code}')
+    notify(
+        receiver.id,
+        'Product sold to you',
+        f'{session.get("user_name")} accepted your request for {product.crop_type} ({product.product_code}).',
+        link=f'/verify?q={product.product_code}',
+    )
     db.session.commit()
-    flash(f'Product transferred to {receiver.name}!', 'success')
+    flash(f'You sold this product to {receiver.name}. Other buyers were notified.', 'success')
+    return redirect(url_for('main.farmer_dashboard'))
+
+
+@main_bp.route('/farmer/reject_buy_request/<int:request_id>', methods=['POST'])
+@login_required
+@role_required('farmer')
+def reject_buy_request(request_id):
+    req = PurchaseRequest.query.get_or_404(request_id)
+    product = req.product
+    if product.farmer_id != session['user_id']:
+        flash('Unauthorized.', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
+    if req.status != 'pending':
+        flash('This request is no longer pending.', 'warning')
+        return redirect(url_for('main.farmer_dashboard'))
+
+    req.status = 'rejected'
+    notify(
+        req.buyer_id,
+        'Purchase request declined',
+        f'{session.get("user_name")} declined your buy request for {product.crop_type} ({product.product_code}). You can send a new request later.',
+        link='/buyer/dashboard',
+    )
+    db.session.commit()
+    flash('Buy request rejected. The buyer may request again later.', 'info')
     return redirect(url_for('main.farmer_dashboard'))
 
 # ─── Buyer ────────────────────────────────────────────────────────────────────
@@ -179,23 +305,32 @@ def transfer_product(product_id):
 @role_required('buyer')
 def buyer_dashboard():
     user = User.query.get(session['user_id'])
-    # Marketplace: only farmer-owned harvested goods; hide rows reserved by another buyer
     products = Product.query.filter(
         Product.status == 'harvested',
         Product.current_owner_id == Product.farmer_id,
-        or_(Product.purchase_requested_by_id.is_(None), Product.purchase_requested_by_id == user.id),
     ).all()
     owned = Product.query.filter_by(current_owner_id=user.id).all()
     txs = Transaction.query.filter(
         (Transaction.sender_id == user.id) | (Transaction.receiver_id == user.id)
     ).order_by(Transaction.timestamp.desc()).limit(10).all()
-    return render_template('buyer_dashboard.html', user=user, products=products, owned=owned, transactions=txs)
+    my_requests = {
+        r.product_id: r
+        for r in PurchaseRequest.query.filter_by(buyer_id=user.id).all()
+    }
+    return render_template(
+        'buyer_dashboard.html',
+        user=user,
+        products=products,
+        owned=owned,
+        transactions=txs,
+        my_requests=my_requests,
+    )
 
 @main_bp.route('/buyer/confirm_purchase/<int:product_id>', methods=['POST'])
 @login_required
 @role_required('buyer')
 def confirm_purchase(product_id):
-    """Record buyer intent only — ownership moves on farmer transfer (blockchain)."""
+    """Record buy interest; multiple buyers can request — farmer accepts one."""
     product = Product.query.get_or_404(product_id)
     if product.status != 'harvested':
         flash('This product is no longer available for purchase.', 'warning')
@@ -203,23 +338,41 @@ def confirm_purchase(product_id):
     if product.current_owner_id != product.farmer_id:
         flash('This listing is not valid.', 'warning')
         return redirect(url_for('main.buyer_dashboard'))
-    if product.purchase_requested_by_id and product.purchase_requested_by_id != session['user_id']:
-        flash('Another buyer has already requested this product.', 'danger')
-        return redirect(url_for('main.buyer_dashboard'))
-    if product.purchase_requested_by_id == session['user_id']:
-        flash('You already requested this product. Wait for the farmer to transfer it to your email.', 'info')
-        return redirect(url_for('main.buyer_dashboard'))
 
-    product.purchase_requested_by_id = session['user_id']
+    existing = PurchaseRequest.query.filter_by(
+        product_id=product.id, buyer_id=session['user_id']
+    ).first()
+    if existing:
+        if existing.status == 'pending':
+            flash('You already have a pending buy request for this product. Wait for the farmer.', 'info')
+            return redirect(url_for('main.buyer_dashboard'))
+        if existing.status == 'accepted':
+            flash('This sale was already completed for you.', 'info')
+            return redirect(url_for('main.buyer_dashboard'))
+        # rejected — allow a new request
+        existing.status = 'pending'
+        existing.updated_at = datetime.utcnow()
+    else:
+        db.session.add(
+            PurchaseRequest(
+                product_id=product.id,
+                buyer_id=session['user_id'],
+                status='pending',
+            )
+        )
+
+    product.purchase_requested_by_id = None  # legacy field unused; keep cleared
+    db.session.flush()
+    pending_n = PurchaseRequest.query.filter_by(product_id=product.id, status='pending').count()
     notify(
         product.farmer_id,
-        'Buyer requested your product',
-        f'{session.get("user_name")} tapped Buy on {product.crop_type} ({product.product_code}). '
-        f'Transfer it to {session.get("user_email")} on your dashboard.',
+        'New buy request',
+        f'{session.get("user_name")} wants to buy {product.crop_type} ({product.product_code}). '
+        f'You have {pending_n} pending request(s) — open your dashboard to accept or reject.',
         link='/farmer/dashboard',
     )
     db.session.commit()
-    flash('Purchase request sent. The farmer must transfer this product to your account email before pickup.', 'success')
+    flash('Buy request sent. The farmer will choose who to sell to.', 'success')
     return redirect(url_for('main.buyer_dashboard'))
 
 
@@ -526,17 +679,40 @@ def call_session(call_type, product_id):
     product = Product.query.get_or_404(product_id)
     user_role = session.get('user_role')
     if user_role == 'farmer':
-        if not product.purchase_requester:
-            flash('No buyer is associated with this product yet.', 'warning')
-            return redirect(url_for('main.farmer_dashboard'))
-        other = product.purchase_requester
+        buyer_id = request.args.get('buyer', type=int)
+        if buyer_id:
+            pr = PurchaseRequest.query.filter_by(
+                product_id=product.id, buyer_id=buyer_id, status='pending'
+            ).first()
+            if not pr or product.farmer_id != session['user_id']:
+                flash('That buyer does not have a pending request for this product.', 'warning')
+                return redirect(url_for('main.farmer_dashboard'))
+            other = pr.buyer
+        else:
+            pr = PurchaseRequest.query.filter_by(
+                product_id=product.id, status='pending'
+            ).first()
+            if not pr:
+                flash('No pending buy requests for this product yet.', 'warning')
+                return redirect(url_for('main.farmer_dashboard'))
+            other = pr.buyer
     else:
         other = product.farmer
     if call_type not in ('voice', 'video'):
         flash('Invalid call type.', 'danger')
         return redirect(url_for('main.index'))
 
-    room = f"AgriChain-{product.product_code}"
+    room = f"AgriChain-{product.product_code}-U{session['user_id']}-U{other.id}"
+    # Emit call notification to the other user
+    from app import socketio
+    socketio.emit('incoming_call', {
+        'from_user': session['user_id'],
+        'from_name': session['user_name'],
+        'call_type': call_type,
+        'room': room,
+        'product_code': product.product_code,
+        'product_id': product.id
+    }, room=f"user_{other.id}")
     return render_template('call.html', product=product, other=other, call_type=call_type, room=room)
 
 # ─── Admin ────────────────────────────────────────────────────────────────────
@@ -691,13 +867,16 @@ def verify_block(product_code):
     block = Block.query.filter_by(hash=product.blockchain_hash).first()
     if not block:
         return jsonify({'error': 'Block not found'}), 404
+    canonical = canonical_json_for_stored_block(block)
     return jsonify({
         'index': block.index,
         'timestamp': block.timestamp.isoformat(),
         'data': json.loads(block.data),
         'previous_hash': block.previous_hash,
         'nonce': block.nonce,
-        'stored_hash': block.hash
+        'stored_hash': block.hash,
+        # Exact bytes that were hashed on the server (avoids JS vs Python JSON differences)
+        'canonical_json': canonical,
     })
 
 
