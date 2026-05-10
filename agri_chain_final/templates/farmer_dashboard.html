@@ -77,13 +77,32 @@
                 <td>{{ p.crop_type }}</td>
                 <td>{{ p.quantity }}</td>
                 <td style="font-size:0.85rem">{{ p.location }}</td>
-                <td><span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span></td>
                 <td>
-                  <div class="d-flex gap-1">
+                  <span class="badge-status badge-{{ p.status }}">{{ p.status.replace('_',' ').title() }}</span>
+                  {% if p.status == 'harvested' and p.purchase_requester %}
+                  <div class="small text-primary mt-1" style="font-size:0.72rem">
+                    <i class="bi bi-bag-check me-1"></i>Buy request: {{ p.purchase_requester.name }}<br>
+                    <span class="text-muted">{{ p.purchase_requester.email }}</span>
+                  </div>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-1 flex-wrap">
                     <a href="/verify?q={{ p.product_code }}" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-shield-check"></i></a>
                     <a href="/qr/{{ p.product_code }}" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-qr-code"></i></a>
+                    {% if p.purchase_requester %}
+                    <a href="/call/voice/{{ p.id }}" class="btn btn-sm btn-outline-primary py-0" title="Call buyer by audio">
+                      <i class="bi bi-telephone"></i>
+                    </a>
+                    <a href="/call/video/{{ p.id }}" class="btn btn-sm btn-outline-primary py-0" title="Call buyer by video">
+                      <i class="bi bi-camera-video"></i>
+                    </a>
+                    {% endif %}
                     {% if p.status == 'harvested' %}
-                    <button class="btn btn-sm btn-outline-success py-0" data-bs-toggle="modal" data-bs-target="#transferModal{{ p.id }}">Transfer</button>
+                    <button class="btn btn-sm btn-outline-success py-0" data-bs-toggle="modal" data-bs-target="#transferModal{{ p.id }}"
+                      {% if not p.purchase_requester %}title="Buyer must tap Buy first"{% endif %}>
+                      Transfer
+                    </button>
                     {% endif %}
                   </div>
                 </td>
@@ -98,11 +117,19 @@
                     </div>
                     <form method="POST" action="/farmer/transfer/{{ p.id }}">
                       <div class="modal-body">
-                        <label class="form-label small fw-semibold">Buyer Email</label>
-                        <input type="email" name="receiver_email" class="form-control form-control-sm" required placeholder="buyer@example.com">
+                        {% if not p.purchase_requester %}
+                        <div class="alert alert-warning py-2 small mb-2">No purchase request yet. Ask the buyer to tap <strong>Buy</strong> first.</div>
+                        {% endif %}
+                        <label class="form-label small fw-semibold">Buyer Email (must match requesting buyer)</label>
+                        <input type="email" name="receiver_email" class="form-control form-control-sm" required
+                          placeholder="buyer@example.com"
+                          value="{{ p.purchase_requester.email if p.purchase_requester else '' }}">
                       </div>
                       <div class="modal-footer py-2">
-                        <button type="submit" class="btn btn-sm btn-primary">Transfer on Blockchain</button>
+                        <button type="submit" class="btn btn-sm btn-primary"
+                          {% if not p.purchase_requester %}disabled title="Buyer must tap Buy first"{% endif %}>
+                          Transfer on Blockchain
+                        </button>
                       </div>
                     </form>
                   </div>

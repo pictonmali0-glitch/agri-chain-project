@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ call_type.title() }} Call - {{ product.product_code }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0">{{ call_type.title() }} Call</h4>
+    <small class="text-muted">Product {{ product.product_code }} · {{ product.crop_type }}</small>
+  </div>
+  <div>
+    <a href="{{ url_for('main.farmer_dashboard') if session.user_role == 'farmer' else url_for('main.buyer_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <div class="fw-semibold">Connecting with</div>
+            <div>{{ other.name }} <small class="text-muted">({{ other.email }})</small></div>
+            <div class="text-muted" style="font-size:0.85rem">{{ call_type.title() }} call room: <strong>{{ room }}</strong></div>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-success">{{ call_type.title() }} Call</span>
+            <div class="text-muted" style="font-size:0.85rem">Ask the other party to join this same room.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="jitsi-container" style="height:72vh;min-height:520px;border-radius:14px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,0.08)"></div>
+    <div class="mt-3 alert alert-info">
+      <i class="bi bi-info-circle me-1"></i>
+      The call is powered by Jitsi Meet. If the embedded session fails, <a href="https://meet.jit.si/{{ room }}" target="_blank" rel="noreferrer">open it in a new tab</a>.
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+  const domain = 'meet.jit.si';
+  const options = {
+    roomName: '{{ room }}',
+    parentNode: document.getElementById('jitsi-container'),
+    width: '100%',
+    height: document.getElementById('jitsi-container').clientHeight,
+    configOverwrite: {
+      startWithAudioMuted: false,
+      startWithVideoMuted: {{ 'true' if call_type == 'voice' else 'false' }},
+      startAudioOnly: {{ 'true' if call_type == 'voice' else 'false' }},
+      prejoinPageEnabled: false
+    },
+    interfaceConfigOverwrite: {
+      HIDE_INVITE_MORE_HEADER: true,
+      SHOW_JITSI_WATERMARK: false,
+      SHOW_BRAND_WATERMARK: false,
+      SHOW_WATERMARK_FOR_GUESTS: false
+    },
+    userInfo: {
+      displayName: '{{ session.user_name or "AgriChain User" }}'
+    }
+  };
+  try {
+    const api = new JitsiMeetExternalAPI(domain, options);
+  } catch (err) {
+    console.error('Jitsi failed to load', err);
+  }
+</script>
+{% endblock %}

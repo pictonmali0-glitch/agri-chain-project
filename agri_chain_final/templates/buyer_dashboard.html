@@ -87,17 +87,29 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                   <a href="/verify?q={{ p.product_code }}"
                     class="btn btn-sm btn-outline-secondary flex-grow-1">
                     <i class="bi bi-shield-check me-1"></i>Verify
                   </a>
+                  <a href="/call/voice/{{ p.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-telephone me-1"></i>Voice
+                  </a>
+                  <a href="/call/video/{{ p.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-camera-video me-1"></i>Video
+                  </a>
+                  {% if p.purchase_requested_by_id == user.id %}
+                  <div class="alert alert-warning py-2 px-2 mb-0 flex-grow-1" style="font-size:0.78rem">
+                    <i class="bi bi-hourglass-split me-1"></i>Awaiting farmer transfer to your email
+                  </div>
+                  {% else %}
                   <form method="POST" action="/buyer/confirm_purchase/{{ p.id }}" class="flex-grow-1">
                     <button type="submit" class="btn btn-sm btn-success w-100"
-                      onclick="return confirm('Confirm purchase on blockchain?')">
+                      onclick="return confirm('Send purchase request to the farmer? They must transfer to you next.')">
                       <i class="bi bi-bag-check me-1"></i>Buy
                     </button>
                   </form>
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -167,10 +179,10 @@
             </button>
           </form>
           <!-- Confirm delivery button -->
-          {% if p.status == 'delivered' or p.status == 'in_transit' %}
+          {% if p.status == 'in_transit' or p.status == 'pending_delivery_confirmation' %}
           <a href="/buyer/confirm_delivery/{{ p.id }}"
             class="btn btn-sm btn-success w-100 mt-1">
-            <i class="bi bi-check-circle me-1"></i>Confirm Receipt
+            <i class="bi bi-qr-code-scan me-1"></i>Scan QR to confirm receipt
           </a>
           {% endif %}
         </div>

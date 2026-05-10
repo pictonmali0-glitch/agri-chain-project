@@ -1,5 +1,6 @@
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify, make_response
 from functools import wraps
+from sqlalchemy import or_
 from models import db, User, Product, Transaction, Block, AuditLog, Notification
 from blockchain import Blockchain
 from datetime import datetime, date
@@ -57,7 +58,8 @@ def add_product():
         qty = float(request.form['quantity'])
         loc = request.form['location']
         hdate = date.fromisoformat(request.form['harvest_date'])
-        grade = request.form.get('quality_grade', 'A')
+        # Quality grade is assigned only by regulators — ignore any posted value
+        grade = 'Pending'
         notes = request.form.get('notes', '')
         code = f'PC-{datetime.utcnow().strftime("%Y%m%d")}-{str(uuid.uuid4())[:6].upper()}'
 
@@ -91,6 +93,7 @@ def add_product():
         block = bc.add_block({
             'action': 'harvested', 'product_id': p.id, 'crop': crop,
             'farmer_id': session['user_id'], 'qty': qty, 'location': loc,
+            'quality_grade': 'Pending',
             'has_photo': image_data is not None
         })
         p.blockchain_hash = block.hash
@@ -101,7 +104,11 @@ def add_product():
             sender_id=session['user_id'],
             block_index=block.index, block_hash=block.hash,
             previous_hash=block.previous_hash,
-            payload=json.dumps({'crop': crop, 'qty': qty, 'location': loc, 'grade': grade, 'has_photo': image_data is not None})
+            payload=json.dumps({
+                'crop': crop, 'qty': qty, 'location': loc,
+                'quality_grade': 'Pending',
+                'has_photo': image_data is not None
+            })
         )
         db.session.add(tx)
         db.session.commit()
@@ -119,11 +126,16 @@ def transfer_product(product_id):
     if product.farmer_id != session['user_id']:
         flash('Unauthorized.', 'danger')
         return redirect(url_for('main.farmer_dashboard'))
-    # FIX 1: Prevent double selling — only allow transfer if still harvested
     if product.status != 'harvested':
         flash(f'Product cannot be transferred — current status is "{product.status}". It may have already been sold.', 'danger')
         return redirect(url_for('main.farmer_dashboard'))
-    receiver_email = request.form.get('receiver_email')
+    if product.current_owner_id != product.farmer_id:
+        flash('Ownership mismatch — product is no longer with you.', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
+    if not product.purchase_requested_by_id:
+        flash('No buyer has requested this product yet. The buyer must tap Buy before you can transfer.', 'warning')
+        return redirect(url_for('main.farmer_dashboard'))
+    receiver_email = request.form.get('receiver_email', '').strip().lower()
     receiver = User.query.filter_by(email=receiver_email).first()
     if not receiver:
         flash('Receiver not found.', 'danger')
@@ -131,6 +143,14 @@ def transfer_product(product_id):
     if receiver.id == session['user_id']:
         flash('You cannot transfer a product to yourself.', 'danger')
         return redirect(url_for('main.farmer_dashboard'))
+    if receiver.id != product.purchase_requested_by_id:
+        flash('You must transfer to the buyer who requested the purchase (the email must match their account).', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
+    if receiver.role != 'buyer':
+        flash('Transfers after purchase request are only to buyer accounts.', 'danger')
+        return redirect(url_for('main.farmer_dashboard'))
+
+    product.purchase_requested_by_id = None
     product.current_owner_id = receiver.id
     product.status = 'transferred'
     bc = Blockchain()
@@ -159,7 +179,12 @@ def transfer_product(product_id):
 @role_required('buyer')
 def buyer_dashboard():
     user = User.query.get(session['user_id'])
-    products = Product.query.filter(Product.status.in_(['transferred', 'harvested'])).all()
+    # Marketplace: only farmer-owned harvested goods; hide rows reserved by another buyer
+    products = Product.query.filter(
+        Product.status == 'harvested',
+        Product.current_owner_id == Product.farmer_id,
+        or_(Product.purchase_requested_by_id.is_(None), Product.purchase_requested_by_id == user.id),
+    ).all()
     owned = Product.query.filter_by(current_owner_id=user.id).all()
     txs = Transaction.query.filter(
         (Transaction.sender_id == user.id) | (Transaction.receiver_id == user.id)
@@ -170,21 +195,31 @@ def buyer_dashboard():
 @login_required
 @role_required('buyer')
 def confirm_purchase(product_id):
+    """Record buyer intent only — ownership moves on farmer transfer (blockchain)."""
     product = Product.query.get_or_404(product_id)
-    product.current_owner_id = session['user_id']
-    product.status = 'purchased'
-    bc = Blockchain()
-    block = bc.add_block({'action': 'purchased', 'product_id': product.id, 'buyer_id': session['user_id']})
-    tx = Transaction(
-        tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
-        product_id=product.id, action='purchased',
-        sender_id=product.farmer_id, receiver_id=session['user_id'],
-        block_index=block.index, block_hash=block.hash,
-        previous_hash=block.previous_hash
+    if product.status != 'harvested':
+        flash('This product is no longer available for purchase.', 'warning')
+        return redirect(url_for('main.buyer_dashboard'))
+    if product.current_owner_id != product.farmer_id:
+        flash('This listing is not valid.', 'warning')
+        return redirect(url_for('main.buyer_dashboard'))
+    if product.purchase_requested_by_id and product.purchase_requested_by_id != session['user_id']:
+        flash('Another buyer has already requested this product.', 'danger')
+        return redirect(url_for('main.buyer_dashboard'))
+    if product.purchase_requested_by_id == session['user_id']:
+        flash('You already requested this product. Wait for the farmer to transfer it to your email.', 'info')
+        return redirect(url_for('main.buyer_dashboard'))
+
+    product.purchase_requested_by_id = session['user_id']
+    notify(
+        product.farmer_id,
+        'Buyer requested your product',
+        f'{session.get("user_name")} tapped Buy on {product.crop_type} ({product.product_code}). '
+        f'Transfer it to {session.get("user_email")} on your dashboard.',
+        link='/farmer/dashboard',
     )
-    db.session.add(tx)
     db.session.commit()
-    flash('Purchase confirmed on blockchain!', 'success')
+    flash('Purchase request sent. The farmer must transfer this product to your account email before pickup.', 'success')
     return redirect(url_for('main.buyer_dashboard'))
 
 
@@ -223,15 +258,24 @@ def transporter_dashboard():
 def update_transport_status(product_id):
     product = Product.query.get_or_404(product_id)
     new_status = request.form.get('status')
-    # FIX 4: Transporter can only set in_transit, not delivered directly
-    # Delivered status requires buyer QR scan confirmation
     if new_status == 'delivered':
         flash('Delivery must be confirmed by the receiver scanning the QR code.', 'warning')
         return redirect(url_for('main.transporter_dashboard'))
 
-    actual_status = new_status
-    if new_status == 'pending_delivery_confirmation':
-        actual_status = 'pending_delivery_confirmation'
+    # Pickup must use QR scanner route only — never promote to in_transit here
+    if new_status == 'in_transit':
+        flash('Pickup must be confirmed by scanning the product QR code with the camera.', 'warning')
+        return redirect(url_for('main.transporter_dashboard'))
+
+    # Only allowed manual step: mark arrived, pending buyer QR confirmation
+    if new_status != 'pending_delivery_confirmation':
+        flash('Invalid transport update.', 'danger')
+        return redirect(url_for('main.transporter_dashboard'))
+    if product.status != 'in_transit':
+        flash('Product must be in transit before marking arrival.', 'warning')
+        return redirect(url_for('main.transporter_dashboard'))
+
+    actual_status = 'pending_delivery_confirmation'
 
     product.status = actual_status
     bc = Blockchain()
@@ -267,12 +311,18 @@ def update_transport_status(product_id):
     return redirect(url_for('main.transporter_dashboard'))
 
 
-@main_bp.route('/transporter/scan_pickup/<string:product_code>', methods=['POST'])
+@main_bp.route('/transporter/scan_pickup/<path:product_code>', methods=['POST'])
 @login_required
 @role_required('transporter')
 def scan_pickup(product_code):
     """Transporter scans QR to confirm pickup."""
-    product = Product.query.filter_by(product_code=product_code).first_or_404()
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({'success': False, 'error': 'Pickup must use the in-app camera QR scanner.'}), 400
+
+    code = (product_code or '').strip()
+    product = Product.query.filter_by(product_code=code).first()
+    if not product:
+        return jsonify({'success': False, 'error': 'Unknown product code.'}), 404
     # FIX 3: Only allow pickup if seller has transferred the product
     if product.status != 'transferred':
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -336,10 +386,12 @@ def confirm_delivery(product_id):
         return redirect(url_for('main.buyer_dashboard'))
 
     if request.method == 'POST':
-        # FIX 5: Verify scanned QR code matches this product
         scanned_code = request.form.get('scanned_code', '').strip()
-        if scanned_code and scanned_code != product.product_code:
-            flash(f'QR code mismatch! Scanned "{scanned_code}" but expected "{product.product_code}". Wrong product.', 'danger')
+        if scanned_code != product.product_code:
+            flash(
+                'You must scan the QR code on the delivered goods so it matches this product. Typing the code is not accepted.',
+                'danger',
+            )
             return render_template('confirm_delivery.html', product=product, mismatch=True)
 
         product.status = 'delivered'
@@ -349,7 +401,7 @@ def confirm_delivery(product_id):
             'product_id': product.id,
             'receiver_id': session['user_id'],
             'method': 'qr_scan_confirmation',
-            'scanned_code': scanned_code or product.product_code
+            'scanned_code': scanned_code
         })
         tx = Transaction(
             tx_id=str(uuid.uuid4()).replace('-', '')[:20].upper(),
@@ -466,6 +518,26 @@ def set_quality_grade(product_id):
     db.session.commit()
     flash(f'Quality grade set to {grade} and recorded on blockchain.', 'success')
     return redirect(url_for('main.regulator_dashboard'))
+
+@main_bp.route('/call/<call_type>/<int:product_id>')
+@login_required
+@role_required('farmer', 'buyer')
+def call_session(call_type, product_id):
+    product = Product.query.get_or_404(product_id)
+    user_role = session.get('user_role')
+    if user_role == 'farmer':
+        if not product.purchase_requester:
+            flash('No buyer is associated with this product yet.', 'warning')
+            return redirect(url_for('main.farmer_dashboard'))
+        other = product.purchase_requester
+    else:
+        other = product.farmer
+    if call_type not in ('voice', 'video'):
+        flash('Invalid call type.', 'danger')
+        return redirect(url_for('main.index'))
+
+    room = f"AgriChain-{product.product_code}"
+    return render_template('call.html', product=product, other=other, call_type=call_type, room=room)
 
 # ─── Admin ────────────────────────────────────────────────────────────────────
 
@@ -586,7 +658,6 @@ def public_verify():
 
     # Search by crop name or farmer name
     if search:
-        from sqlalchemy import or_
         search_results = Product.query.join(User, Product.farmer_id == User.id).filter(
             or_(
                 Product.crop_type.ilike(f'%{search}%'),
