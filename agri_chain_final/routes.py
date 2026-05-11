@@ -110,9 +110,16 @@ def add_product():
             payload=json.dumps({'crop': crop, 'qty': qty, 'location': loc, 'grade': grade, 'has_photo': image_data is not None})
         )
         db.session.add(tx)
+        # Notify all regulators about new product
+        regulators = User.query.filter_by(role='regulator', is_active=True).all()
+        for reg in regulators:
+            notify(reg.id, '🌾 New Product Awaiting Grade',
+                   f'{session.get("user_name")} uploaded {crop} ({code}). Please assign a quality grade.',
+                   link='/regulator/dashboard')
         db.session.commit()
 
         flash(f'Product {code} added to blockchain!', 'success')
+        return redirect(url_for('main.farmer_dashboard'))
         return redirect(url_for('main.farmer_dashboard'))
 
     return render_template('add_product.html')
@@ -220,6 +227,11 @@ def request_purchase(product_id):
     # Only available harvested products can be requested
     if product.status != 'harvested':
         flash('This product is not available for purchase.', 'warning')
+        return redirect(url_for('main.buyer_dashboard'))
+
+    # FIX 4: Block if regulator hasn't graded yet
+    if not product.quality_grade or product.quality_grade == 'Pending':
+        flash('Cannot place a purchase request — this product is awaiting quality grade assignment by a regulator.', 'warning')
         return redirect(url_for('main.buyer_dashboard'))
 
     # Check no existing pending request from this buyer
@@ -513,6 +525,10 @@ def set_quality_grade(product_id):
     grade = request.form.get('quality_grade')
     if not grade:
         flash('Please select a quality grade.', 'danger')
+        return redirect(url_for('main.regulator_dashboard'))
+    # Block if already graded
+    if product.quality_grade and product.quality_grade != 'Pending':
+        flash(f'Grade already assigned as {product.quality_grade}. Cannot change once set.', 'warning')
         return redirect(url_for('main.regulator_dashboard'))
     product.quality_grade = grade
     bc = Blockchain()

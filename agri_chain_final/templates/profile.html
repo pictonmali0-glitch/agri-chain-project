@@ -3,95 +3,86 @@
 {% block content %}
 <div class="row justify-content-center" style="margin-top:2rem">
   <div class="col-md-6">
-
     <div class="text-center mb-4">
       <h4 class="fw-bold">My Profile</h4>
       <small class="text-muted">Update your profile picture and personal details</small>
     </div>
 
     <div class="card p-4">
-
-      <!-- Profile picture display -->
+      <!-- Current profile picture -->
       <div class="text-center mb-4">
-        <img id="current-pic"
-          src="{{ user.profile_picture if user.profile_picture else '' }}"
-          style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:4px solid #1a6b3c;display:{{ 'block' if user.profile_picture else 'none' }};margin:0 auto">
-        <div id="default-avatar" style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:{{ 'none' if user.profile_picture else 'flex' }};align-items:center;justify-content:center;margin:0 auto;border:4px solid #1a6b3c">
-          <i class="bi bi-person-fill" style="font-size:3rem;color:white"></i>
+        <div id="dash-avatar" style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:flex;align-items:center;justify-content:center;margin:0 auto;border:4px solid #1a6b3c;overflow:hidden">
+          <i class="bi bi-person-fill text-white" style="font-size:3rem" id="dash-icon"></i>
+          <img id="dash-pic" src="" style="width:120px;height:120px;object-fit:cover;display:none">
         </div>
-        <div class="mt-2">
-          <span class="fw-bold">{{ user.name }}</span><br>
-          <span class="badge" style="background:rgba(26,107,60,0.15);color:#1a6b3c;border:1px solid rgba(26,107,60,0.3)">
-            {{ user.role|title }}
-          </span>
-        </div>
+        <div class="mt-2 fw-bold">{{ user.name }}</div>
+        <span class="badge" style="background:rgba(26,107,60,0.15);color:#1a6b3c;border:1px solid rgba(26,107,60,0.3)">{{ user.role|title }}</span>
       </div>
 
-      <!-- Profile picture upload form -->
-      <form method="POST" action="/profile" enctype="multipart/form-data" id="profile-form">
+      <form method="POST" action="/profile" enctype="multipart/form-data">
 
         <div class="mb-4">
-          <label class="form-label fw-semibold">
-            <i class="bi bi-camera me-1"></i>Profile Picture
-          </label>
+          <label class="form-label fw-semibold"><i class="bi bi-camera me-1"></i>Profile Picture</label>
 
-          <!-- Preview (hidden until photo selected) -->
+          <!-- Preview -->
           <div id="preview-wrap" class="text-center mb-3 d-none">
-            <img id="pic-preview" src="#"
-              style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:3px solid #1a6b3c">
+            <img id="pic-preview" src="#" style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:3px solid #1a6b3c">
             <div class="mt-1">
               <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearPic()">
-                <i class="bi bi-x-circle me-1"></i>Remove
+                <i class="bi bi-x-circle me-1"></i>Remove selection
               </button>
             </div>
           </div>
 
-          <!-- Two separate buttons -->
-          <div class="d-grid gap-2">
-            <button type="button" class="btn btn-outline-success"
-              onclick="document.getElementById('camera-input').click()">
-              <i class="bi bi-camera me-2"></i>Take Photo with Camera
-            </button>
-            <button type="button" class="btn btn-outline-primary"
-              onclick="document.getElementById('gallery-input').click()">
-              <i class="bi bi-images me-2"></i>Choose from Gallery
+          <!-- Option selector -->
+          <div id="option-selector" class="d-grid gap-2">
+            <button type="button" class="btn btn-outline-success" onclick="showCameraOptions()">
+              <i class="bi bi-camera me-2"></i>Take Photo or Choose Image
             </button>
           </div>
 
-          <!-- Camera input — opens camera directly -->
-          <input type="file" id="camera-input" name="profile_picture"
-            accept="image/*" capture="environment"
-            class="d-none" onchange="previewPic(this)">
+          <!-- Hidden inputs -->
+          <input type="file" id="camera-capture" name="profile_picture"
+            accept="image/*" capture="environment" class="d-none" onchange="previewPic(this)">
+          <input type="file" id="gallery-pick" accept="image/*"
+            class="d-none" onchange="galleryPic(this)">
 
-          <!-- Gallery input — opens gallery -->
-          <input type="file" id="gallery-input"
-            accept="image/*"
-            class="d-none" onchange="previewPic(this)">
+          <!-- Camera options popup -->
+          <div id="camera-options" class="d-none mt-2">
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-success"
+                onclick="document.getElementById('camera-capture').click()">
+                <i class="bi bi-camera-fill me-2"></i>Take Photo (Camera)
+              </button>
+              <button type="button" class="btn btn-primary"
+                onclick="document.getElementById('gallery-pick').click()">
+                <i class="bi bi-images me-2"></i>Choose from Gallery
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm"
+                onclick="hideCameraOptions()">Cancel</button>
+            </div>
+          </div>
 
-          <small class="text-muted d-block mt-2">JPG or PNG, max 5MB</small>
+          <small class="text-muted d-block mt-2">JPG or PNG — max 5MB</small>
         </div>
 
         <hr>
 
-        <!-- Personal details -->
         <div class="mb-3">
           <label class="form-label fw-semibold">Full Name</label>
           <input type="text" name="name" class="form-control" value="{{ user.name }}">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Phone</label>
-          <input type="text" name="phone" class="form-control"
-            value="{{ user.phone or '' }}" placeholder="+256700000000">
+          <input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}" placeholder="+256700000000">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Location</label>
-          <input type="text" name="location" class="form-control"
-            value="{{ user.location or '' }}" placeholder="Kasese, Uganda">
+          <input type="text" name="location" class="form-control" value="{{ user.location or '' }}" placeholder="Kasese, Uganda">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Email</label>
-          <input type="text" class="form-control" value="{{ user.email }}"
-            disabled style="background:#f8f9fa">
+          <input type="text" class="form-control" value="{{ user.email }}" disabled style="background:#f8f9fa">
           <small class="text-muted">Email cannot be changed</small>
         </div>
 
@@ -108,64 +99,75 @@
         </button>
       </form>
       {% endif %}
-
     </div>
   </div>
 </div>
 
 <script>
-// When gallery input changes, copy file to the form's profile_picture input
-document.getElementById('gallery-input').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
+// Load current profile pic
+fetch('/api/profile_picture').then(r=>r.json()).then(data=>{
+  if(data.picture){
+    document.getElementById('dash-pic').src=data.picture;
+    document.getElementById('dash-pic').style.display='block';
+    document.getElementById('dash-icon').style.display='none';
+  }
+}).catch(()=>{});
 
-  // Create a new DataTransfer to set file on the camera-input (which is the named form field)
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  document.getElementById('camera-input').files = dt.files;
-});
+function showCameraOptions() {
+  document.getElementById('option-selector').classList.add('d-none');
+  document.getElementById('camera-options').classList.remove('d-none');
+}
+
+function hideCameraOptions() {
+  document.getElementById('camera-options').classList.add('d-none');
+  document.getElementById('option-selector').classList.remove('d-none');
+}
 
 function previewPic(input) {
+  hideCameraOptions();
   const file = input.files[0];
   if (!file) return;
-
   if (file.size > 5 * 1024 * 1024) {
-    alert('Image is too large. Please choose one under 5MB.');
+    alert('Image too large. Max 5MB.');
     input.value = '';
     return;
   }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('pic-preview').src = e.target.result;
+    document.getElementById('preview-wrap').classList.remove('d-none');
+  };
+  reader.readAsDataURL(file);
+}
 
-  // If gallery was used, copy to camera-input (the named form field)
-  if (input.id === 'gallery-input') {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    document.getElementById('camera-input').files = dt.files;
+function galleryPic(input) {
+  hideCameraOptions();
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image too large. Max 5MB.');
+    input.value = '';
+    return;
   }
+  // Copy to named form input
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  document.getElementById('camera-capture').files = dt.files;
 
   const reader = new FileReader();
   reader.onload = e => {
     document.getElementById('pic-preview').src = e.target.result;
     document.getElementById('preview-wrap').classList.remove('d-none');
-    // Hide current pic while previewing new one
-    document.getElementById('current-pic').style.display = 'none';
-    document.getElementById('default-avatar').style.display = 'none';
   };
   reader.readAsDataURL(file);
 }
 
 function clearPic() {
-  document.getElementById('camera-input').value = '';
-  document.getElementById('gallery-input').value = '';
+  document.getElementById('camera-capture').value = '';
+  document.getElementById('gallery-pick').value = '';
   document.getElementById('pic-preview').src = '#';
   document.getElementById('preview-wrap').classList.add('d-none');
-  // Show current pic again
-  const pic = document.getElementById('current-pic');
-  const avatar = document.getElementById('default-avatar');
-  if (pic.src && pic.src !== window.location.href) {
-    pic.style.display = 'block';
-  } else {
-    avatar.style.display = 'flex';
-  }
+  hideCameraOptions();
 }
 </script>
 {% endblock %}

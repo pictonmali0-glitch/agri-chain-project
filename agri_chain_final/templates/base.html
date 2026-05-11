@@ -158,14 +158,12 @@ body { background: var(--surface); margin: 0; }
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
-    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
 
   {% elif session.user_role == 'admin' %}
     <a href="/admin/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i>Dashboard</a>
     <a href="/verify" class="nav-link"><i class="bi bi-shield-check"></i>Verify Product</a>
     <a href="/analytics" class="nav-link"><i class="bi bi-bar-chart"></i>Analytics</a>
     <a href="/blockchain_explorer" class="nav-link"><i class="bi bi-link-45deg"></i>Blockchain</a>
-    <a href="/profile" class="nav-link"><i class="bi bi-person-circle"></i>My Profile</a>
   {% endif %}
 
   <div class="sidebar-section mt-3">Account</div>
@@ -221,6 +219,29 @@ if (document.getElementById('nav-avatar')) {
 }
 
 // Poll notification count every 30 seconds
+let lastNotifCount = 0;
+let bellUnlocked = false;
+
+// Unlock audio on first user interaction
+document.addEventListener('click', () => { bellUnlocked = true; }, { once: true });
+
+function playBell() {
+  if (!bellUnlocked) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    o.start(ctx.currentTime);
+    o.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+
 function updateNotifCount() {
   fetch('/api/notifications/count')
     .then(r => r.json())
@@ -230,9 +251,14 @@ function updateNotifCount() {
         if (data.count > 0) {
           badge.style.display = 'inline';
           badge.textContent = data.count;
+          // Play bell if new notifications arrived
+          if (data.count > lastNotifCount) {
+            playBell();
+          }
         } else {
           badge.style.display = 'none';
         }
+        lastNotifCount = data.count;
       }
     }).catch(() => {});
 }
