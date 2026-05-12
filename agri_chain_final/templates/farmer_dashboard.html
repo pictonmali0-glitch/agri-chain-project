@@ -306,62 +306,6 @@ Farmer Dashboard - AgriChain
 
               </tr>
 
-              <!-- Transfer Modal -->
-
-              <div class="modal fade"
-                id="transferModal{{ p.id }}"
-                tabindex="-1">
-
-                <div class="modal-dialog modal-sm">
-
-                  <div class="modal-content">
-
-                    <div class="modal-header">
-
-                      <h6 class="modal-title">
-                        Transfer {{ p.product_code }}
-                      </h6>
-
-                      <button type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"></button>
-
-                    </div>
-
-                    <form method="POST"
-                      action="/farmer/transfer/{{ p.id }}">
-
-                      <div class="modal-body">
-
-                        <label class="form-label small fw-semibold">
-                          Buyer Email
-                        </label>
-
-                        <input type="email"
-                          name="receiver_email"
-                          class="form-control form-control-sm"
-                          required
-                          placeholder="buyer@example.com">
-
-                      </div>
-
-                      <div class="modal-footer py-2">
-
-                        <button type="submit"
-                          class="btn btn-sm btn-primary">
-
-                          Transfer on Blockchain
-
-                        </button>
-
-                      </div>
-
-                    </form>
-
-                  </div>
-                </div>
-              </div>
-
               {% else %}
 
               <tr>
@@ -521,8 +465,67 @@ Farmer Dashboard - AgriChain
   </div>
 </div>
 
-<!-- JS -->
+<!-- Transfer Modals (moved outside table) -->
 
+{% for p in products %}
+<div class="modal fade"
+  id="transferModal{{ p.id }}"
+  tabindex="-1">
+
+  <div class="modal-dialog modal-sm">
+
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <h6 class="modal-title">
+          Transfer {{ p.product_code }}
+        </h6>
+
+        <button type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"></button>
+
+      </div>
+
+      <form method="POST"
+        action="/farmer/transfer/{{ p.id }}">
+
+        <div class="modal-body">
+
+          <label class="form-label small fw-semibold">
+            Buyer Email
+          </label>
+
+          <input type="email"
+            name="receiver_email"
+            class="form-control form-control-sm"
+            required
+            placeholder="buyer@example.com">
+
+        </div>
+
+        <div class="modal-footer py-2">
+
+          <button type="submit"
+            class="btn btn-sm btn-primary">
+
+            Transfer on Blockchain
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
 <script>
 
 fetch('/api/profile_picture')
@@ -541,5 +544,4 @@ fetch('/api/profile_picture')
   .catch(() => {});
 
 </script>
-
 {% endblock %}
