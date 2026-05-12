@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+gunicorn
+psycopg2-binary
+qrcode[pil]
+pillow
+webauthn
+flask-socketio
+python-socketio
