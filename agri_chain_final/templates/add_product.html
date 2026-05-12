@@ -1,5 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Add Product - AgriChain{% endblock %}
+{% block title %}Add Product - AgriChain
+<script>
+const MARKET_PRICES = {};
+
+// Load market prices from API
+fetch('/api/market_prices').then(r=>r.json()).then(data=>{
+  Object.assign(MARKET_PRICES, data);
+  updatePrice();
+}).catch(()=>{});
+
+function updatePrice() {
+  const crop = document.querySelector('[name="crop_type"]').value;
+  const qty = parseFloat(document.querySelector('[name="quantity"]').value) || 0;
+  const price = MARKET_PRICES[crop] || 0;
+
+  document.getElementById('market-price').value = price > 0 ? '$' + price.toFixed(2) : 'N/A';
+  document.getElementById('price-per-kg').value = price;
+
+  const total = price * qty;
+  document.getElementById('total-value').value = total > 0
+    ? '$' + total.toFixed(2)
+    : '';
+}
+
+document.querySelector('[name="crop_type"]').addEventListener('change', updatePrice);
+document.querySelector('[name="quantity"]').addEventListener('input', updatePrice);
+</script>
+{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-7">
@@ -55,28 +82,27 @@
             <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes about this harvest..."></textarea>
           </div>
 
-          <!-- Price -->
+          <!-- Standard Market Price -->
           <div class="col-md-6">
-            <label class="form-label fw-semibold">
-              Price per kg (UGX) <span class="text-danger">*</span>
-            </label>
+            <label class="form-label fw-semibold">Market Price (USD/kg)</label>
             <div class="input-group">
-              <span class="input-group-text">UGX</span>
-              <input type="number" name="price_per_kg" id="price-per-kg"
-                class="form-control" min="1" step="1"
-                placeholder="e.g. 800" required
-                oninput="calcTotal()">
+              <span class="input-group-text">$</span>
+              <input type="text" id="market-price" class="form-control"
+                readonly style="background:#f8f9fa;font-weight:600;color:#1a6b3c"
+                placeholder="Select crop first">
+              <input type="hidden" name="price_per_kg" id="price-per-kg">
             </div>
+            <small class="text-muted">Standard market rate (set by system)</small>
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Total Batch Value (UGX)</label>
+            <label class="form-label fw-semibold">Total Batch Value (USD)</label>
             <div class="input-group">
-              <span class="input-group-text">UGX</span>
+              <span class="input-group-text">$</span>
               <input type="text" id="total-value" class="form-control"
                 placeholder="Auto-calculated" readonly
                 style="background:#f8f9fa;font-weight:600;color:#1a6b3c">
             </div>
-            <small class="text-muted">= Price/kg × Quantity</small>
+            <small class="text-muted">= Market price × Quantity</small>
           </div>
 
           <!-- ── PHOTO UPLOAD ── -->
@@ -161,15 +187,29 @@ function clearImage() {
 </script>
 
 <script>
-function calcTotal() {
-  const price = parseFloat(document.getElementById('price-per-kg').value) || 0;
+const MARKET_PRICES = {};
+
+// Load market prices from API
+fetch('/api/market_prices').then(r=>r.json()).then(data=>{
+  Object.assign(MARKET_PRICES, data);
+  updatePrice();
+}).catch(()=>{});
+
+function updatePrice() {
+  const crop = document.querySelector('[name="crop_type"]').value;
   const qty = parseFloat(document.querySelector('[name="quantity"]').value) || 0;
+  const price = MARKET_PRICES[crop] || 0;
+
+  document.getElementById('market-price').value = price > 0 ? '$' + price.toFixed(2) : 'N/A';
+  document.getElementById('price-per-kg').value = price;
+
   const total = price * qty;
   document.getElementById('total-value').value = total > 0
-    ? 'UGX ' + total.toLocaleString()
+    ? '$' + total.toFixed(2)
     : '';
 }
-// Recalculate when quantity changes too
-document.querySelector('[name="quantity"]').addEventListener('input', calcTotal);
+
+document.querySelector('[name="crop_type"]').addEventListener('change', updatePrice);
+document.querySelector('[name="quantity"]').addEventListener('input', updatePrice);
 </script>
 {% endblock %}

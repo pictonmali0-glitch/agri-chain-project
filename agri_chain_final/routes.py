@@ -228,6 +228,10 @@ def request_purchase(product_id):
     if product.status != 'harvested':
         flash('This product is not available for purchase.', 'warning')
         return redirect(url_for('main.buyer_dashboard'))
+    # Block if not graded yet
+    if not product.quality_grade or product.quality_grade == 'Pending':
+        flash('Cannot place request — product is awaiting quality grade from regulator.', 'warning')
+        return redirect(url_for('main.buyer_dashboard'))
 
     # FIX 4: Block if regulator hasn't graded yet
     if not product.quality_grade or product.quality_grade == 'Pending':
@@ -459,11 +463,36 @@ def confirm_delivery(product_id):
 @role_required('regulator')
 def regulator_dashboard():
     user = User.query.get(session['user_id'])
-    products = Product.query.all()
+    search = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', '').strip()
+    grade_filter = request.args.get('grade', '').strip()
+
+    query = Product.query
+    if search:
+        from sqlalchemy import or_
+        query = query.join(User, Product.farmer_id == User.id).filter(
+            or_(
+                User.name.ilike(f'%{search}%'),
+                Product.crop_type.ilike(f'%{search}%'),
+                Product.product_code.ilike(f'%{search}%'),
+                Product.location.ilike(f'%{search}%')
+            )
+        )
+    if status_filter:
+        query = query.filter(Product.status == status_filter)
+    if grade_filter == 'pending':
+        query = query.filter(Product.quality_grade == 'Pending')
+    elif grade_filter == 'graded':
+        query = query.filter(Product.quality_grade != 'Pending')
+
+    products = query.order_by(Product.created_at.desc()).all()
     flagged = Product.query.filter_by(is_flagged=True).all()
     bc = Blockchain()
     chain_valid = bc.is_chain_valid()
-    return render_template('regulator_dashboard.html', user=user, products=products, flagged=flagged, chain_valid=chain_valid)
+    return render_template('regulator_dashboard.html', user=user, products=products,
+                           flagged=flagged, chain_valid=chain_valid,
+                           search=search, status_filter=status_filter,
+                           grade_filter=grade_filter)
 
 @main_bp.route('/regulator/approve/<int:product_id>', methods=['POST'])
 @login_required
@@ -610,7 +639,19 @@ def blockchain_explorer():
     bc = Blockchain()
     chain = bc.get_chain()
     is_valid = bc.is_chain_valid()
-    return render_template('blockchain_explorer.html', chain=chain, is_valid=is_valid)
+    # Build node data - each block is a node connected to previous
+    nodes = []
+    for i, block in enumerate(chain):
+        nodes.append({
+            'id': block['index'],
+            'hash': block['hash'][:12] if block.get('hash') else 'genesis',
+            'prev': block['previous_hash'][:12] if block.get('previous_hash') else '0'*12,
+            'data': block.get('data', '{}'),
+            'timestamp': block.get('timestamp', ''),
+            'nonce': block.get('nonce', 0)
+        })
+    return render_template('blockchain_explorer.html', chain=chain,
+                           is_valid=is_valid, nodes=nodes)
 
 @main_bp.route('/analytics')
 @login_required
@@ -791,6 +832,26 @@ def notification_count():
         user_id=session['user_id'], is_read=False
     ).count()
     return jsonify({'count': count})
+
+
+# ─── Market Prices ────────────────────────────────────────────────────────────
+
+MARKET_PRICES_USD = {
+    'Maize': 0.22,
+    'Coffee': 2.50,
+    'Beans': 0.75,
+    'Tomatoes': 0.45,
+    'Sorghum': 0.28,
+    'Cassava': 0.18,
+    'Banana': 0.30,
+    'Sweet Potato': 0.20,
+    'Rice': 0.85,
+    'Groundnuts': 1.10
+}
+
+@main_bp.route('/api/market_prices')
+def market_prices():
+    return jsonify(MARKET_PRICES_USD)
 
 # ─── PWA ──────────────────────────────────────────────────────────────────────
 

@@ -88,10 +88,10 @@ fetch('/api/profile_picture').then(r=>r.json()).then(data=>{
                   {% if p.price_per_kg %}
                   <div>
                     <span style="font-size:1.05rem;font-weight:700;color:#1a6b3c">
-                      UGX {{ '{:,.0f}'.format(p.price_per_kg) }}/kg
+                      ${{ '%.2f'|format(p.price_per_kg) }}/kg
                     </span>
                     <span class="text-muted" style="font-size:0.75rem">
-                      · Total UGX {{ '{:,.0f}'.format(p.price_per_kg * p.quantity) }}
+                      · Total ${{ '%.2f'|format(p.price_per_kg * p.quantity) }}
                     </span>
                   </div>
                   <small class="text-muted">Farmer price</small>
@@ -170,12 +170,12 @@ fetch('/api/profile_picture').then(r=>r.json()).then(data=>{
                 <small class="text-muted">{{ p.quantity }}kg · {{ p.location }}</small>
                 {% if p.price_per_kg %}
                 <div style="font-size:0.75rem;color:#1a6b3c;font-weight:600">
-                  Bought: UGX {{ '{:,.0f}'.format(p.price_per_kg) }}/kg
+                  Bought: ${{ '%.2f'|format(p.price_per_kg) }}/kg
                 </div>
                 {% endif %}
                 {% if p.resale_price_per_kg %}
                 <div style="font-size:0.75rem;color:#f4a820;font-weight:600">
-                  Resale: UGX {{ '{:,.0f}'.format(p.resale_price_per_kg) }}/kg
+                  Resale: ${{ '%.2f'|format(p.resale_price_per_kg) }}/kg
                 </div>
                 {% endif %}
               </div>
