@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: agri-chain-project
+    rootDir: agri_chain_final
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
