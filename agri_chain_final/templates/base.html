@@ -100,7 +100,6 @@ body { background: var(--surface); margin: 0; }
     </a>
     <div class="ms-auto d-flex align-items-center gap-2">
       {% if session.user_id %}
-        <!-- Profile picture in navbar - loaded via API -->
         <a href="/profile" class="me-1" style="text-decoration:none" id="nav-profile-link">
           <div id="nav-avatar" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a6b3c,#2d9e5f);display:inline-flex;align-items:center;justify-content:center;border:2px solid #f4a820;overflow:hidden">
             <i class="bi bi-person-fill text-white" style="font-size:0.9rem" id="nav-avatar-icon"></i>
@@ -111,7 +110,6 @@ body { background: var(--surface); margin: 0; }
         <span class="badge" style="background:rgba(244,168,32,0.2);color:#f4a820;border:1px solid rgba(244,168,32,0.3);font-size:0.7rem">
           {{ session.user_role|title }}
         </span>
-        <!-- Notification Bell -->
         <a href="/notifications" class="btn btn-sm btn-outline-light ms-1 position-relative" id="notif-btn">
           <i class="bi bi-bell"></i>
           <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;display:none">0</span>
@@ -126,7 +124,7 @@ body { background: var(--surface); margin: 0; }
 </nav>
 
 {% if session.user_id %}
-<!-- SIDEBAR — role based -->
+<!-- SIDEBAR - role based -->
 <div id="sidebar" class="sidebar">
 
   <div class="sidebar-section">Main</div>
@@ -194,21 +192,31 @@ function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("active");
 }
 </script>
+
 {% block extra_js %}{% endblock %}
 
 <script>
-// Load profile picture from API (not session - avoids cookie size limit)
+// Load profile picture from API
 function loadProfilePic() {
   fetch('/api/profile_picture')
     .then(r => r.json())
     .then(data => {
       if (data.picture) {
+        // Update navbar avatar
         const img = document.getElementById('nav-avatar-img');
         const icon = document.getElementById('nav-avatar-icon');
         if (img && icon) {
           img.src = data.picture;
           img.style.display = 'block';
           icon.style.display = 'none';
+        }
+        // Update dashboard avatar if present (farmer/buyer dashboards)
+        const dashPic = document.getElementById('dash-pic');
+        const dashIcon = document.getElementById('dash-icon');
+        if (dashPic && dashIcon) {
+          dashPic.src = data.picture;
+          dashPic.style.display = 'block';
+          dashIcon.style.display = 'none';
         }
       }
     }).catch(() => {});
@@ -222,7 +230,6 @@ if (document.getElementById('nav-avatar')) {
 let lastNotifCount = 0;
 let bellUnlocked = false;
 
-// Unlock audio on first user interaction
 document.addEventListener('click', () => { bellUnlocked = true; }, { once: true });
 
 function playBell() {
@@ -251,7 +258,6 @@ function updateNotifCount() {
         if (data.count > 0) {
           badge.style.display = 'inline';
           badge.textContent = data.count;
-          // Play bell if new notifications arrived
           if (data.count > lastNotifCount) {
             playBell();
           }
@@ -262,7 +268,7 @@ function updateNotifCount() {
       }
     }).catch(() => {});
 }
-// Run on load and every 30s
+
 if (document.getElementById('notif-btn')) {
   updateNotifCount();
   setInterval(updateNotifCount, 30000);

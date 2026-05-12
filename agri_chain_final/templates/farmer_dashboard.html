@@ -465,7 +465,7 @@ Farmer Dashboard - AgriChain
   </div>
 </div>
 
-<!-- Transfer Modals (moved outside table) -->
+<!-- Transfer Modals (outside table) -->
 
 {% for p in products %}
 <div class="modal fade"
@@ -523,25 +523,4 @@ Farmer Dashboard - AgriChain
 </div>
 {% endfor %}
 
-{% endblock %}
-
-{% block extra_js %}
-<script>
-
-fetch('/api/profile_picture')
-  .then(r => r.json())
-  .then(data => {
-
-    if(data.picture){
-
-      document.getElementById('dash-pic').src = data.picture;
-      document.getElementById('dash-pic').style.display = 'block';
-      document.getElementById('dash-icon').style.display = 'none';
-
-    }
-
-  })
-  .catch(() => {});
-
-</script>
 {% endblock %}
