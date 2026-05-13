@@ -82,7 +82,7 @@ def add_product():
         price_per_kg = float(price_per_kg) if price_per_kg else None
 
         p = Product(
-            product_code=code, crop_type=crop, quantity=qty, unit='kg',
+            product_code=code, crop_type=crop, quantity=qty, unit=request.form.get('unit', 'kg'),
             location=loc, district='Kasese', harvest_date=hdate,
             quality_grade=grade, status='harvested',
             farmer_id=session['user_id'], current_owner_id=session['user_id'],
