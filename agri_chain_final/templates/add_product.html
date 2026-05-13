@@ -16,7 +16,8 @@
           <!-- Crop Type — free text with datalist suggestions -->
           <div class="col-md-6">
             <label class="form-label fw-semibold">Crop / Product Type <span class="text-danger">*</span></label>
-            <input type="text" name="crop_type" class="form-control"
+            <input type="text" name="crop_type" id="crop-type-input"
+              class="form-control"
               list="crop-suggestions"
               placeholder="e.g. Maize, Milk, Honey..."
               required
@@ -68,6 +69,7 @@
                 <option value="ml">ml</option>
                 <option value="bags">bags</option>
                 <option value="crates">crates</option>
+                <option value="baskets">baskets</option>
                 <option value="bunches">bunches</option>
                 <option value="pieces">pieces</option>
                 <option value="dozen">dozen</option>
@@ -102,19 +104,23 @@
               placeholder="Additional notes about this harvest..."></textarea>
           </div>
 
-          <!-- Market Price -->
+          <!-- Price per unit — editable, auto-fills for known crops -->
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Market Price (USD/<span id="unit-label">kg</span>)</label>
+            <label class="form-label fw-semibold">
+              Price (USD / <span id="unit-label">kg</span>)
+              <span class="text-danger">*</span>
+            </label>
             <div class="input-group">
               <span class="input-group-text">$</span>
-              <input type="text" id="market-price" class="form-control"
-                readonly style="background:#f8f9fa;font-weight:600;color:#1a6b3c"
-                placeholder="Select crop first">
-              <input type="hidden" name="price_per_kg" id="price-per-kg">
+              <input type="number" id="market-price" name="price_per_kg"
+                class="form-control" min="0" step="0.01" required
+                style="font-weight:600;color:#1a6b3c"
+                placeholder="Enter price per unit">
             </div>
-            <small class="text-muted">Standard market rate (set by system)</small>
+            <small class="text-muted">Auto-fills for known crops — you can edit it</small>
           </div>
 
+          <!-- Total value — auto calculated -->
           <div class="col-md-6">
             <label class="form-label fw-semibold">Total Batch Value (USD)</label>
             <div class="input-group">
@@ -123,7 +129,7 @@
                 placeholder="Auto-calculated" readonly
                 style="background:#f8f9fa;font-weight:600;color:#1a6b3c">
             </div>
-            <small class="text-muted">= Market price × Quantity</small>
+            <small class="text-muted">= Price × Quantity</small>
           </div>
 
           <!-- Photo Upload -->
@@ -180,31 +186,40 @@
 <script>
 const MARKET_PRICES = {};
 
+// Load market prices from API
 fetch('/api/market_prices').then(r => r.json()).then(data => {
   Object.assign(MARKET_PRICES, data);
-  updatePrice();
+  updateTotal();
 }).catch(() => {});
 
-function updatePrice() {
-  const crop = document.querySelector('[name="crop_type"]').value;
-  const qty = parseFloat(document.querySelector('[name="quantity"]').value) || 0;
-  const price = MARKET_PRICES[crop] || 0;
-
-  document.getElementById('market-price').value = price > 0 ? '$' + price.toFixed(2) : 'N/A';
-  document.getElementById('price-per-kg').value = price;
-
+function updateTotal() {
+  const qty = parseFloat(document.getElementById('quantity-input').value) || 0;
+  const price = parseFloat(document.getElementById('market-price').value) || 0;
   const total = price * qty;
   document.getElementById('total-value').value = total > 0 ? '$' + total.toFixed(2) : '';
 }
 
-// Update unit label next to "Market Price"
-document.getElementById('unit-select').addEventListener('change', function() {
-  document.getElementById('unit-label').textContent = this.value;
-  updatePrice();
+// Auto-fill price when a known crop is selected
+document.getElementById('crop-type-input').addEventListener('input', function() {
+  const crop = this.value.trim();
+  const price = MARKET_PRICES[crop];
+  if (price) {
+    document.getElementById('market-price').value = price.toFixed(2);
+  }
+  updateTotal();
 });
 
-document.querySelector('[name="crop_type"]').addEventListener('input', updatePrice);
-document.querySelector('[name="quantity"]').addEventListener('input', updatePrice);
+// Update unit label and recalculate total when unit changes
+document.getElementById('unit-select').addEventListener('change', function() {
+  document.getElementById('unit-label').textContent = this.value;
+  updateTotal();
+});
+
+// Recalculate total when quantity changes
+document.getElementById('quantity-input').addEventListener('input', updateTotal);
+
+// Recalculate total when price is manually edited
+document.getElementById('market-price').addEventListener('input', updateTotal);
 
 function previewImage(event) {
   const file = event.target.files[0];
