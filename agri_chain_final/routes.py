@@ -63,7 +63,7 @@ def add_product():
         qty = float(request.form['quantity'])
         loc = request.form['location']
         hdate = date.fromisoformat(request.form['harvest_date'])
-        grade = request.form.get('quality_grade', 'A')
+        grade = request.form.get('quality_grade', 'Pending')
         notes = request.form.get('notes', '')
         code = f'PC-{datetime.utcnow().strftime("%Y%m%d")}-{str(uuid.uuid4())[:6].upper()}'
 
@@ -210,7 +210,7 @@ def transfer_product(product_id):
 @role_required('buyer')
 def buyer_dashboard():
     user = User.query.get(session['user_id'])
-    products = Product.query.filter(Product.status.in_(['transferred', 'harvested'])).all()
+    products = Product.query.filter(Product.status.in_(['transferred', 'harvested', 'approved'])).all()
     owned = Product.query.filter_by(current_owner_id=user.id).all()
     txs = Transaction.query.filter(
         (Transaction.sender_id == user.id) | (Transaction.receiver_id == user.id)
